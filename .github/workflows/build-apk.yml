@@ -1,42 +1,40 @@
-name: Android APK Build
+# ==========================================
+# GRADLE PROPERTIES PARA ANDROID BUILD
+# ==========================================
+# Guarda este archivo como: android/gradle.properties
 
-on:
-  push:
-    branches:
-      - main
+# Configuración de memoria para Gradle
+org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
+# Configuración de construcción
+org.gradle.parallel=true
+org.gradle.caching=true
+org.gradle.configureondemand=true
 
-    steps:
-    - uses: actions/checkout@v4
+# Configuración de Android
+android.useAndroidX=true
+android.enableJetifier=true
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
+# Configuración de compilación
+android.enableR8.fullMode=true
+android.enableR8=true
 
-    - name: Install buildozer and other dependencies
-      run: |
-        pip install --upgrade pip
-        pip install buildozer cython
+# Configuración de firma (para release)
+android.injected.signing.store.file=
+android.injected.signing.store.password=
+android.injected.signing.key.alias=
+android.injected.signing.key.password=
 
-    - name: Set up Java (if not already provided by runner)
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'temurin'
-        java-version: '17'
+# Configuración de Flutter (si aplica)
+flutter.compileSdkVersion=34
+flutter.targetSdkVersion=34
+flutter.minSdkVersion=21
 
-    - name: Accept Android SDK licenses
-      run: |
-        yes | sdkmanager --licenses > /dev/null || true
+# Configuración de build
+android.defaults.buildfeatures.buildconfig=true
+android.nonTransitiveRClass=false
+android.nonFinalResIds=false
 
-    - name: Build Android Debug APK
-      run: |
-        echo "🔧 Verificando configuración..." 
-        java -version 
-        python3 --version 
-        buildozer --version 
-        echo "🚀 Iniciando build del APK..." 
-        buildozer android debug --verbose
+# Configuración de performance
+kapt.use.worker.api=true
+kapt.incremental.apt=true
