@@ -1,43 +1,42 @@
-[app]
-title = AviatorPredictor
-package.name = aviatorpredictor
-package.domain = org.nikuela
-source.dir = .
-source.include_exts = py,png,jpg,kv,atlas
-version = 0.1
-requirements = python3,kivy,pillow,pytesseract,matplotlib,certifi,requests
-orientation = portrait
-fullscreen = 0
+name: Android APK Build
 
-[buildozer]
-log_level = 2
-warn_on_root = 1
+on:
+  push:
+    branches:
+      - main
 
-# Archivos incluidos en el APK
-include_exts = py,png,jpg,kv,atlas
+jobs:
+  build:
+    runs-on: ubuntu-latest
 
-# Android configuration
-android.api = 33
-android.minapi = 21
-android.archs = armeabi-v7a,arm64-v8a
-android.ndk = 25b
-android.ndk_path = $HOME/.buildozer/android/platform/android-ndk-r25b
-android.sdk = 24
-android.accept_sdk_license = True
-android.permissions = INTERNET
+    steps:
+    - uses: actions/checkout@v4
 
-# Evitar problemas con compilación
-android.allow_backup = 0
-android.use_android_native_api = False
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
 
-# Evitar errores con threads
-android.threading = auto
+    - name: Install buildozer and other dependencies
+      run: |
+        pip install --upgrade pip
+        pip install buildozer cython
 
-# Firma el APK automáticamente (opcional)
-# android.release_key.alias = mykey
-# android.release_key.storepass = mypass
-# android.release_key.alias_password = myaliaspass
-# android.release_key.keypass = mykeypass
+    - name: Set up Java (if not already provided by runner)
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
 
-# Versión de buildozer
-buildozer_version = 1.5.0
+    - name: Accept Android SDK licenses
+      run: |
+        yes | sdkmanager --licenses > /dev/null || true
+
+    - name: Build Android Debug APK
+      run: |
+        echo "🔧 Verificando configuración..." 
+        java -version 
+        python3 --version 
+        buildozer --version 
+        echo "🚀 Iniciando build del APK..." 
+        buildozer android debug --verbose
