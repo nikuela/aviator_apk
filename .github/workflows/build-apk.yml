@@ -15,62 +15,58 @@ jobs:
     steps:
     - uses: actions/checkout@v4
       with:
-        submodules: recursive # Asegura que los submódulos, como python-for-android, se clonen
+        submodules: recursive
 
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.10' # Usa una versión de Python compatible con Buildozer y Kivy
+        python-version: '3.10'
 
     - name: Install buildozer and other dependencies
       run: |
-        python -m pip install --upgrade pip # Actualiza pip
-        pip install buildozer cython # Instala Buildozer y Cython
+        python -m pip install --upgrade pip
+        pip install buildozer cython
 
     - name: Set up Java (JDK 17 is recommended for recent Android SDKs)
       uses: actions/setup-java@v4
       with:
-        distribution: 'temurin' # Distribución de OpenJDK
-        java-version: '17' # Versión de Java requerida por Android SDK y Buildozer
+        distribution: 'temurin'
+        java-version: '17'
 
-    - name: Accept Android SDK licenses
+    - name: Accept Android SDK licenses and install platform-tools/build-tools
       run: |
-        # Esto acepta todas las licencias automáticamente.
-        # El 'yes |' simula la entrada 'y' por cada pregunta de licencia.
-        # '>/dev/null' suprime la salida detallada de las licencias para mantener los logs limpios.
-        # '|| true' asegura que el paso no falle si las licencias ya están aceptadas o hay una salida inesperada.
+        echo "Aceptando licencias de Android SDK..."
         yes | sdkmanager --licenses > /dev/null || true
-      env:
-        # Asegúrate de que las variables de entorno para el SDK estén disponibles si sdkmanager las necesita,
-        # aunque 'buildozer' generalmente las configura.
-        ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
-        ANDROID_HOME: /usr/local/lib/android/sdk
+
+        echo "Instalando Android SDK Platform-Tools y Build-Tools 36.0.0..."
+        # Asegúrate de que platform-tools y build-tools;36.0.0 se instalen después de aceptar las licencias.
+        # sdkmanager se ubica en el directorio tools/bin dentro de la instalación del SDK.
+        # Definimos ANDROID_HOME explícitamente para sdkmanager.
+        export ANDROID_HOME=/home/runner/.buildozer/android/platform/android-sdk
+        $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "build-tools;36.0.0" || true
+        # Nota: La ruta a sdkmanager puede variar ligeramente dependiendo de la versión de commandlinetools.
+        # Con commandlinetools-linux-6514223_latest.zip, sdkmanager suele estar en cmdline-tools/latest/bin.
+        # Si sigue fallando, podrías probar con $ANDROID_HOME/tools/bin/sdkmanager, aunque es una ruta más antigua.
 
     - name: Configure Buildozer for Android
       run: |
-        # Inicializa buildozer. Esto creará el archivo buildozer.spec si no existe.
-        # Es crucial que tu proyecto ya tenga un archivo buildozer.spec o que este paso lo cree.
-        # Si ya tienes buildozer.spec en tu repositorio, este comando lo actualizará o verificará.
-        buildozer init || true # Usamos '|| true' para que no falle si ya está inicializado
+        buildozer init || true
 
     - name: Build Android Debug APK
       run: |
         echo "🔧 Verificando configuración final..."
-        java -version # Verifica la versión de Java
-        python3 --version # Verifica la versión de Python
-        buildozer --version # Verifica la versión de Buildozer
+        java -version
+        python3 --version
+        buildozer --version
         echo "🚀 Iniciando build del APK..."
-        # El comando principal para construir el APK.
-        # '--verbose' proporciona más detalles en caso de errores.
         buildozer android debug --verbose
       env:
-        # Define ANDROID_HOME y NDK_HOME para Buildozer si no se detectan automáticamente.
-        # Los runners de GitHub Actions suelen tenerlos preconfigurados, pero es buena práctica incluirlos.
+        # Asegura que las rutas del SDK y NDK estén correctamente configuradas para buildozer.
         ANDROID_HOME: /home/runner/.buildozer/android/platform/android-sdk
-        ANDROID_NDK_HOME: /home/runner/.buildozer/android/platform/android-ndk-r25b # Asegúrate de que esta ruta coincida con la versión del NDK descargada.
+        ANDROID_NDK_HOME: /home/runner/.buildozer/android/platform/android-ndk-r25b # Revisa tu log si usas una versión de NDK diferente.
 
     - name: Upload APK artifact
       uses: actions/upload-artifact@v4
       with:
         name: android-apk
-        path: bin/*.apk # Asegúrate de que esta ruta sea donde buildozer guarda el APK (generalmente en la carpeta 'bin')
+        path: bin/*.apk
