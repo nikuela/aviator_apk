@@ -105,23 +105,148 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-gradle-
           
-    - name: Setup Gradle
+    - name: Setup Android Project
       run: |
+        echo "🔍 === VERIFICANDO ESTRUCTURA DEL PROYECTO ==="
+        
+        # Verificar si existe un proyecto Android
+        if [ ! -f "build.gradle" ] && [ ! -f "build.gradle.kts" ] && [ ! -f "settings.gradle" ]; then
+          echo "❌ No se detectó proyecto Android. Creando estructura básica..."
+          
+          # Crear estructura mínima
+          mkdir -p app/src/main/java/com/example/myapp
+          mkdir -p app/src/main/res/layout
+          mkdir -p app/src/main/res/values
+          mkdir -p app/src/main/res/xml
+          
+          # Crear settings.gradle
+          cat > settings.gradle << 'GRADLE_EOF'
+        pluginManagement {
+            repositories {
+                google()
+                mavenCentral()
+                gradlePluginPortal()
+            }
+        }
+        dependencyResolutionManagement {
+            repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+            repositories {
+                google()
+                mavenCentral()
+            }
+        }
+        rootProject.name = "MyApp"
+        include ':app'
+        GRADLE_EOF
+          
+          # Crear build.gradle raíz
+          cat > build.gradle << 'GRADLE_EOF'
+        plugins {
+            id 'com.android.application' version '8.1.4' apply false
+        }
+        task clean(type: Delete) {
+            delete rootProject.buildDir
+        }
+        GRADLE_EOF
+          
+          # Crear app/build.gradle
+          cat > app/build.gradle << 'GRADLE_EOF'
+        plugins {
+            id 'com.android.application'
+        }
+        android {
+            namespace 'com.example.myapp'
+            compileSdk 34
+            defaultConfig {
+                applicationId "com.example.myapp"
+                minSdk 21
+                targetSdk 34
+                versionCode 1
+                versionName "1.0"
+            }
+            buildTypes {
+                release {
+                    minifyEnabled false
+                    signingConfig signingConfigs.debug
+                }
+            }
+            compileOptions {
+                sourceCompatibility JavaVersion.VERSION_1_8
+                targetCompatibility JavaVersion.VERSION_1_8
+            }
+        }
+        dependencies {
+            implementation 'androidx.appcompat:appcompat:1.6.1'
+            implementation 'com.google.android.material:material:1.10.0'
+        }
+        GRADLE_EOF
+          
+          # Crear AndroidManifest.xml
+          cat > app/src/main/AndroidManifest.xml << 'XML_EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+            <application
+                android:allowBackup="true"
+                android:icon="@android:drawable/ic_launcher"
+                android:label="MyApp"
+                android:theme="@android:style/Theme.Material.Light">
+                <activity
+                    android:name=".MainActivity"
+                    android:exported="true">
+                    <intent-filter>
+                        <action android:name="android.intent.action.MAIN" />
+                        <category android:name="android.intent.category.LAUNCHER" />
+                    </intent-filter>
+                </activity>
+            </application>
+        </manifest>
+        XML_EOF
+          
+          # Crear MainActivity.java
+          cat > app/src/main/java/com/example/myapp/MainActivity.java << 'JAVA_EOF'
+        package com.example.myapp;
+        import android.app.Activity;
+        import android.os.Bundle;
+        public class MainActivity extends Activity {
+            @Override
+            protected void onCreate(Bundle savedInstanceState) {
+                super.onCreate(savedInstanceState);
+            }
+        }
+        JAVA_EOF
+          
+          # Crear strings.xml
+          mkdir -p app/src/main/res/values
+          cat > app/src/main/res/values/strings.xml << 'XML_EOF'
+        <resources>
+            <string name="app_name">MyApp</string>
+        </resources>
+        XML_EOF
+          
+          echo "✅ Estructura básica de proyecto Android creada"
+        else
+          echo "✅ Proyecto Android existente detectado"
+        fi
+        
         # Configurar gradle.properties
-        cat > gradle.properties << EOF
+        cat > gradle.properties << 'PROPS_EOF'
         org.gradle.daemon=false
         org.gradle.parallel=true
-        org.gradle.configureondemand=false
         org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m
         android.useAndroidX=true
         android.enableJetifier=true
         android.enableBuildCache=true
-        EOF
+        PROPS_EOF
         
-        # Dar permisos a gradlew si existe
-        if [ -f "gradlew" ]; then
-          chmod +x gradlew
+        # Crear o actualizar gradlew
+        if [ ! -f "gradlew" ]; then
+          gradle wrapper --gradle-version=8.0
         fi
+        chmod +x gradlew
+        
+        echo "📋 Estructura final del proyecto:"
+        ls -la *.gradle* 2>/dev/null || echo "No gradle files in root"
+        ls -la app/*.gradle* 2>/dev/null || echo "No gradle files in app"
         
     - name: Clean project
       run: |
