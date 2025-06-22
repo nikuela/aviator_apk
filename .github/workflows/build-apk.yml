@@ -20,7 +20,7 @@ jobs:
             build-essential autoconf automake libtool pkg-config zlib1g-dev \
             libncurses5 libstdc++6 libffi-dev libssl-dev libsqlite3-dev libjpeg-dev \
             libpng-dev libfreetype6-dev liblcms2-dev libblas-dev liblapack-dev \
-            libatlas-base-dev libgstreamer1.0 libgstreamer1.0-dev \
+            libatlas-base-dev libgstreamer-plugins-base1.0-dev libgstreamer1.0-dev \
             libmtdev-dev libgl1-mesa-dev libgles2-mesa-dev xclip
           pip install --upgrade pip
           pip install buildozer
