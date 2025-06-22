@@ -1,376 +1,43 @@
-name: Build Android APK
+[app]
+title = AviatorPredictor
+package.name = aviatorpredictor
+package.domain = org.nikuela
+source.dir = .
+source.include_exts = py,png,jpg,kv,atlas
+version = 0.1
+requirements = python3,kivy,pillow,pytesseract,matplotlib,certifi,requests
+orientation = portrait
+fullscreen = 0
 
-on:
-  push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main ]
-  workflow_dispatch:
+[buildozer]
+log_level = 2
+warn_on_root = 1
 
-jobs:
-  build-apk:
-    runs-on: ubuntu-22.04
-    
-    steps:
-    - name: 🚀 Checkout Repository
-      uses: actions/checkout@v4
-      
-    - name: 🐍 Setup Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
-        
-    - name: ☕ Setup Java JDK
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'temurin'
-        java-version: '17'
-        
-    - name: 📦 Cache Dependencies
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.cache/pip
-          ~/.buildozer
-        key: ${{ runner.os }}-buildozer-${{ hashFiles('**/requirements.txt', '**/buildozer.spec') }}
-        restore-keys: |
-          ${{ runner.os }}-buildozer-
+# Archivos incluidos en el APK
+include_exts = py,png,jpg,kv,atlas
 
-    - name: 🔧 Install Core Dependencies
-      run: |
-        sudo apt update -qq
-        sudo apt install -y --fix-missing --no-install-recommends \
-          git \
-          zip \
-          unzip \
-          openjdk-17-jdk \
-          python3-pip \
-          python3-setuptools \
-          python3-dev \
-          python3-distutils \
-          build-essential \
-          autoconf \
-          automake \
-          libtool \
-          pkg-config \
-          zlib1g-dev \
-          libffi-dev \
-          libssl-dev \
-          libsqlite3-dev \
-          cmake \
-          ninja-build \
-          ccache
+# Android configuration
+android.api = 33
+android.minapi = 21
+android.archs = armeabi-v7a,arm64-v8a
+android.ndk = 25b
+android.ndk_path = $HOME/.buildozer/android/platform/android-ndk-r25b
+android.sdk = 24
+android.accept_sdk_license = True
+android.permissions = INTERNET
 
-    - name: 🎨 Install Graphics Dependencies
-      run: |
-        sudo apt install -y --fix-missing --no-install-recommends \
-          libjpeg-dev \
-          libpng-dev \
-          libfreetype6-dev \
-          liblcms2-dev \
-          libgl1-mesa-dev \
-          libgles2-mesa-dev
+# Evitar problemas con compilación
+android.allow_backup = 0
+android.use_android_native_api = False
 
-    - name: 🔢 Install Math Libraries
-      run: |
-        sudo apt install -y --fix-missing --no-install-recommends \
-          libblas-dev \
-          liblapack-dev \
-          libatlas-base-dev
+# Evitar errores con threads
+android.threading = auto
 
-    - name: 📱 Install Android Essentials
-      run: |
-        sudo apt install -y --fix-missing --no-install-recommends \
-          libncurses5 \
-          libncurses5-dev \
-          libstdc++6 \
-          xclip
+# Firma el APK automáticamente (opcional)
+# android.release_key.alias = mykey
+# android.release_key.storepass = mypass
+# android.release_key.alias_password = myaliaspass
+# android.release_key.keypass = mykeypass
 
-    - name: 🐍 Install Python Dependencies
-      run: |
-        python3 -m pip install --upgrade pip wheel setuptools
-        pip install --upgrade \
-          buildozer \
-          cython==0.29.36 \
-          kivy[base] \
-          kivymd \
-          pillow \
-          requests \
-          pyjnius
-
-    - name: ⚙️ Configure Environment Variables
-      run: |
-        echo "JAVA_HOME=$JAVA_HOME" >> $GITHUB_ENV
-        echo "ANDROIDAPI=34" >> $GITHUB_ENV
-        echo "ANDROIDNDK=25c" >> $GITHUB_ENV
-        echo "ANDROIDNDKVER=r25c" >> $GITHUB_ENV
-        echo "PATH=$PATH:$JAVA_HOME/bin" >> $GITHUB_ENV
-
-    - name: 📋 Initialize Buildozer
-      run: |
-        if [ ! -f "buildozer.spec" ]; then
-          buildozer init
-          
-          # Configurar buildozer.spec
-          sed -i 's/title = My Application/title = Aviator APK/' buildozer.spec
-          sed -i 's/package.name = myapp/package.name = aviator/' buildozer.spec
-          sed -i 's/package.domain = org.example/package.domain = com.nikuela/' buildozer.spec
-          sed -i 's/source.dir = ./source.dir = ./' buildozer.spec
-          sed -i 's/version = 0.1/version = 1.0/' buildozer.spec
-          sed -i 's/requirements = python3,kivy/requirements = python3,kivy,kivymd,pillow,requests/' buildozer.spec
-          sed -i 's/#android.permissions = /android.permissions = INTERNET,ACCESS_NETWORK_STATE,WRITE_EXTERNAL_STORAGE,READ_EXTERNAL_STORAGE/' buildozer.spec
-          sed -i 's/#android.api = /android.api = 34/' buildozer.spec
-          sed -i 's/#android.minapi = /android.minapi = 21/' buildozer.spec
-          sed -i 's/#android.ndk = /android.ndk = 25c/' buildozer.spec
-          sed -i 's/#android.skip_update = /android.skip_update = False/' buildozer.spec
-          
-          echo "" >> buildozer.spec
-          echo "# Optimizations" >> buildozer.spec
-          echo "android.gradle_dependencies = " >> buildozer.spec
-          echo "android.add_src = " >> buildozer.spec
-          echo "android.whitelist_src = " >> buildozer.spec
-          echo "android.blacklist_src = " >> buildozer.spec
-        fi
-
-    - name: 📱 Create Sample App
-      run: |
-        if [ ! -f "main.py" ]; then
-          cat > main.py << 'EOF'
-        from kivy.app import App
-        from kivy.uix.boxlayout import BoxLayout
-        from kivy.uix.label import Label
-        from kivy.uix.button import Button
-        from kivy.uix.image import Image
-        from kivy.clock import Clock
-        import random
-        
-        class AviatorApp(App):
-            def build(self):
-                # Layout principal
-                main_layout = BoxLayout(orientation='vertical', padding=20, spacing=10)
-                
-                # Título
-                title = Label(
-                    text='🚀✈️ AVIATOR APK ✈️🚀',
-                    font_size='28sp',
-                    size_hint_y=None,
-                    height='80dp',
-                    color=(1, 0.8, 0, 1)  # Dorado
-                )
-                
-                # Subtítulo
-                subtitle = Label(
-                    text='¡Aplicación construida con GitHub Actions!',
-                    font_size='18sp',
-                    size_hint_y=None,
-                    height='60dp',
-                    color=(0.8, 0.8, 0.8, 1)  # Gris claro
-                )
-                
-                # Multiplicador (simulado)
-                self.multiplier_label = Label(
-                    text='Multiplicador: 1.00x',
-                    font_size='24sp',
-                    size_hint_y=None,
-                    height='100dp',
-                    color=(0, 1, 0, 1)  # Verde
-                )
-                
-                # Botón de vuelo
-                self.fly_button = Button(
-                    text='🛫 ¡DESPEGAR!',
-                    font_size='20sp',
-                    size_hint_y=None,
-                    height='80dp',
-                    background_color=(0, 0.7, 1, 1)  # Azul cielo
-                )
-                self.fly_button.bind(on_press=self.start_flight)
-                
-                # Botón de parada
-                self.stop_button = Button(
-                    text='🛬 ATERRIZAR',
-                    font_size='20sp',
-                    size_hint_y=None,
-                    height='80dp',
-                    background_color=(1, 0.5, 0, 1),  # Naranja
-                    disabled=True
-                )
-                self.stop_button.bind(on_press=self.stop_flight)
-                
-                # Estado del juego
-                self.status_label = Label(
-                    text='¡Listo para volar!',
-                    font_size='16sp',
-                    size_hint_y=None,
-                    height='50dp'
-                )
-                
-                # Agregar widgets
-                main_layout.add_widget(title)
-                main_layout.add_widget(subtitle)
-                main_layout.add_widget(self.multiplier_label)
-                main_layout.add_widget(self.fly_button)
-                main_layout.add_widget(self.stop_button)
-                main_layout.add_widget(self.status_label)
-                
-                # Variables del juego
-                self.is_flying = False
-                self.multiplier = 1.0
-                self.flight_event = None
-                
-                return main_layout
-            
-            def start_flight(self, instance):
-                if not self.is_flying:
-                    self.is_flying = True
-                    self.multiplier = 1.0
-                    self.fly_button.disabled = True
-                    self.stop_button.disabled = False
-                    self.status_label.text = '✈️ ¡Volando!'
-                    
-                    # Iniciar simulación de vuelo
-                    self.flight_event = Clock.schedule_interval(self.update_flight, 0.1)
-            
-            def update_flight(self, dt):
-                if self.is_flying:
-                    # Incrementar multiplicador
-                    self.multiplier += random.uniform(0.01, 0.05)
-                    self.multiplier_label.text = f'Multiplicador: {self.multiplier:.2f}x'
-                    
-                    # Cambiar color según el multiplicador
-                    if self.multiplier < 2.0:
-                        self.multiplier_label.color = (0, 1, 0, 1)  # Verde
-                    elif self.multiplier < 5.0:
-                        self.multiplier_label.color = (1, 1, 0, 1)  # Amarillo
-                    else:
-                        self.multiplier_label.color = (1, 0, 0, 1)  # Rojo
-                    
-                    # Posibilidad aleatoria de crash
-                    if random.random() < 0.02:  # 2% de probabilidad
-                        self.crash_flight()
-            
-            def stop_flight(self, instance):
-                if self.is_flying:
-                    self.is_flying = False
-                    if self.flight_event:
-                        self.flight_event.cancel()
-                    
-                    self.fly_button.disabled = False
-                    self.stop_button.disabled = True
-                    self.status_label.text = f'🛬 ¡Aterrizaje exitoso! Ganaste {self.multiplier:.2f}x'
-                    self.multiplier_label.color = (0, 1, 1, 1)  # Cian
-            
-            def crash_flight(self):
-                self.is_flying = False
-                if self.flight_event:
-                    self.flight_event.cancel()
-                
-                self.fly_button.disabled = False
-                self.stop_button.disabled = True
-                self.status_label.text = '💥 ¡Crash! El avión se estrelló'
-                self.multiplier_label.color = (1, 0, 0, 1)  # Rojo
-        
-        if __name__ == '__main__':
-            AviatorApp().run()
-        EOF
-        fi
-
-    - name: 🔨 Build APK Debug
-      run: |
-        echo "🔧 Verificando configuración..."
-        java -version
-        python3 --version
-        buildozer --version
-        
-        echo "🚀 Iniciando build del APK..."
-        buildozer android debug --verbose
-        
-    - name: 🔍 List Generated Files
-      run: |
-        echo "📁 Archivos generados:"
-        find . -name "*.apk" -type f -exec ls -la {} \;
-        echo ""
-        echo "📂 Contenido del directorio bin:"
-        ls -la bin/ 2>/dev/null || echo "Directorio bin no encontrado"
-        
-    - name: 📦 Upload APK Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: aviator-apk-debug-v${{ github.run_number }}
-        path: bin/*.apk
-        retention-days: 30
-        if-no-files-found: warn
-
-    - name: 🎯 Create Release (on main branch)
-      if: github.ref == 'refs/heads/main' && success()
-      uses: softprops/action-gh-release@v1
-      with:
-        tag_name: v${{ github.run_number }}
-        name: 🚀 Aviator APK v${{ github.run_number }}
-        body: |
-          ## 🚀 Aviator APK Build #${{ github.run_number }}
-          
-          ### ✅ Características del Build:
-          - **✈️ Juego Aviator simulado** con multiplicadores
-          - **🐍 Python 3.10** + Kivy Framework
-          - **📱 Android API 34** (compatible con Android 14+)
-          - **🔧 NDK r25c** para máximo rendimiento
-          - **🎮 Interfaz interactiva** con botones y animaciones
-          
-          ### 🎯 Funcionalidades:
-          - 🛫 Simulación de vuelo con multiplicadores
-          - 🛬 Sistema de aterrizaje manual
-          - 💥 Mecánica de crash aleatoria
-          - 🎨 Interfaz colorida y responsive
-          
-          ### 📲 Instalación:
-          1. **Descarga** el APK desde los assets
-          2. **Habilita** "Fuentes desconocidas" en Android
-          3. **Instala** y disfruta del juego
-          
-          ### 📊 Información Técnica:
-          - **Commit:** `${{ github.sha }}`
-          - **Branch:** `${{ github.ref_name }}`
-          - **Build Date:** `${{ github.event.head_commit.timestamp }}`
-          - **Runner:** Ubuntu 22.04
-          
-          ---
-          *🤖 Generado automáticamente con GitHub Actions*
-        files: bin/*.apk
-        draft: false
-        prerelease: false
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: ✅ Build Summary
-      if: always()
-      run: |
-        echo "🎉 =================================="
-        echo "    BUILD SUMMARY"
-        echo "🎉 =================================="
-        echo ""
-        echo "📊 Información del Sistema:"
-        echo "- OS: Ubuntu 22.04"
-        echo "- Python: $(python3 --version)"
-        echo "- Java: $(java -version 2>&1 | head -n 1)"
-        echo "- Buildozer: $(buildozer --version 2>/dev/null || echo 'No disponible')"
-        echo ""
-        echo "📦 Build Info:"
-        echo "- Commit: ${{ github.sha }}"
-        echo "- Branch: ${{ github.ref_name }}"
-        echo "- Run Number: ${{ github.run_number }}"
-        echo ""
-        echo "📱 APKs Generados:"
-        find . -name "*.apk" -exec basename {} \; 2>/dev/null || echo "❌ No se encontraron APKs"
-        echo ""
-        if [ -f "bin/*.apk" ]; then
-          echo "✅ BUILD EXITOSO!"
-          echo "🔗 Descarga tu APK desde 'Actions > Artifacts'"
-        else
-          echo "❌ BUILD FALLÓ - Revisa los logs"
-        fi
-        echo ""
-        echo "🎯 Próximos pasos:"
-        echo "1. Descarga el APK desde GitHub Actions"
-        echo "2. Instala en tu dispositivo Android"
-        echo "3. ¡Disfruta del juego Aviator!"
+# Versión de buildozer
+buildozer_version = 1.5.0
