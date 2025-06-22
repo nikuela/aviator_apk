@@ -1,7 +1,4 @@
-#!/bin/bash
 
-# Script mejorado para compilación de APK con soporte completo para AIDL
-set -e
 
 echo "=== Configurando entorno Android ==="
 
