@@ -1,239 +1,166 @@
-#!/bin/bash
+name: Build Android APK
 
-# Script completo para compilación de APK con AIDL totalmente configurado
-set -e
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
 
-echo "🚀 === INICIANDO CONFIGURACIÓN COMPLETA ANDROID SDK CON AIDL ==="
-
-# Variables de entorno principales
-export ANDROID_HOME=$PWD/android-sdk
-export ANDROID_SDK_ROOT=$ANDROID_HOME
-export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin
-export PATH=$PATH:$ANDROID_HOME/platform-tools
-
-# Limpiar instalaciones previas si existen
-echo "🧹 Limpiando instalaciones previas..."
-rm -rf $ANDROID_HOME 2>/dev/null || true
-rm -f commandlinetools-linux-*.zip 2>/dev/null || true
-
-# Crear directorios necesarios
-echo "📁 Creando estructura de directorios..."
-mkdir -p $ANDROID_HOME/cmdline-tools
-mkdir -p $ANDROID_HOME/platforms
-mkdir -p $ANDROID_HOME/build-tools
-mkdir -p $ANDROID_HOME/platform-tools
-
-echo "⬇️  === DESCARGANDO ANDROID SDK COMMAND LINE TOOLS ==="
-wget -q --show-progress https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
-echo "📦 Extrayendo Command Line Tools..."
-unzip -q commandlinetools-linux-9477386_latest.zip
-mv cmdline-tools $ANDROID_HOME/cmdline-tools/latest
-
-# Verificar que sdkmanager esté disponible
-echo "🔍 Verificando sdkmanager..."
-if [ ! -f "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then
-    echo "❌ Error: sdkmanager no encontrado"
-    exit 1
-fi
-
-echo "✅ sdkmanager encontrado correctamente"
-
-echo "📋 === ACEPTANDO TODAS LAS LICENCIAS AUTOMÁTICAMENTE ==="
-# Crear archivo de respuestas automáticas para licencias
-mkdir -p $ANDROID_HOME/licenses
-echo -e "\n8933bad161af4178b1185d1a37fbf41ea5269c55" > $ANDROID_HOME/licenses/android-sdk-license
-echo -e "\n84831b9409646a918e30573bab4c9c91346d8abd" > $ANDROID_HOME/licenses/android-sdk-preview-license
-echo -e "\nd975f751698a77b662f1254ddbeed3901e976f5a" > $ANDROID_HOME/licenses/intel-android-extra-license
-
-# Aceptar licencias de forma interactiva también
-yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null 2>&1 || true
-
-echo "🔧 === INSTALANDO COMPONENTES ANDROID SDK ==="
-echo "Instalando platform-tools..."
-$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "platform-tools"
-
-echo "Instalando platforms..."
-$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "platforms;android-34"
-$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "platforms;android-33"
-$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "platforms;android-32"
-
-echo "Instalando build-tools (incluyendo AIDL)..."
-$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "build-tools;34.0.0"
-$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "build-tools;33.0.2"
-$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "build-tools;33.0.1"
-$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "build-tools;33.0.0"
-$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "build-tools;32.0.0"
-
-echo "Instalando herramientas adicionales..."
-$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "extras;android;m2repository"
-$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "extras;google;m2repository"
-
-echo "🛠️  === CONFIGURANDO PATH COMPLETO PARA AIDL ==="
-# Agregar todas las versiones de build-tools al PATH
-export PATH=$PATH:$ANDROID_HOME/build-tools/34.0.0
-export PATH=$PATH:$ANDROID_HOME/build-tools/33.0.2
-export PATH=$PATH:$ANDROID_HOME/build-tools/33.0.1
-export PATH=$PATH:$ANDROID_HOME/build-tools/33.0.0
-export PATH=$PATH:$ANDROID_HOME/build-tools/32.0.0
-
-# Actualizar PATH permanentemente para el script
-echo "export PATH=\$PATH:$ANDROID_HOME/build-tools/34.0.0" >> ~/.bashrc
-echo "export PATH=\$PATH:$ANDROID_HOME/build-tools/33.0.2" >> ~/.bashrc
-echo "export ANDROID_HOME=$ANDROID_HOME" >> ~/.bashrc
-
-echo "🔍 === VERIFICACIÓN COMPLETA DE AIDL ==="
-AIDL_FOUND=false
-AIDL_VERSION=""
-
-# Buscar AIDL en todas las versiones instaladas
-for version in "34.0.0" "33.0.2" "33.0.1" "33.0.0" "32.0.0"; do
-    AIDL_PATH="$ANDROID_HOME/build-tools/$version/aidl"
-    if [ -f "$AIDL_PATH" ]; then
-        echo "✅ AIDL encontrado en build-tools/$version"
-        echo "📍 Ruta: $AIDL_PATH"
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup JDK 11
+      uses: actions/setup-java@v4
+      with:
+        java-version: '11'
+        distribution: 'temurin'
         
-        # Dar permisos de ejecución
-        chmod +x "$AIDL_PATH"
+    - name: Setup Android SDK with AIDL
+      run: |
+        echo "🚀 === INICIANDO CONFIGURACIÓN COMPLETA ANDROID SDK CON AIDL ==="
         
-        # Probar que funciona
-        if "$AIDL_PATH" --help > /dev/null 2>&1; then
-            echo "✅ AIDL funciona correctamente en versión $version"
-            AIDL_FOUND=true
-            AIDL_VERSION=$version
-            export PREFERRED_AIDL_PATH="$ANDROID_HOME/build-tools/$version"
+        # Variables de entorno principales
+        export ANDROID_HOME=$PWD/android-sdk
+        export ANDROID_SDK_ROOT=$ANDROID_HOME
+        export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin
+        export PATH=$PATH:$ANDROID_HOME/platform-tools
+        
+        # Crear directorios necesarios
+        echo "📁 Creando estructura de directorios..."
+        mkdir -p $ANDROID_HOME/cmdline-tools
+        mkdir -p $ANDROID_HOME/platforms
+        mkdir -p $ANDROID_HOME/build-tools
+        mkdir -p $ANDROID_HOME/platform-tools
+        
+        echo "⬇️ === DESCARGANDO ANDROID SDK COMMAND LINE TOOLS ==="
+        wget -q --show-progress https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+        echo "📦 Extrayendo Command Line Tools..."
+        unzip -q commandlinetools-linux-9477386_latest.zip
+        mv cmdline-tools $ANDROID_HOME/cmdline-tools/latest
+        
+        echo "📋 === ACEPTANDO TODAS LAS LICENCIAS AUTOMÁTICAMENTE ==="
+        mkdir -p $ANDROID_HOME/licenses
+        echo -e "\n8933bad161af4178b1185d1a37fbf41ea5269c55" > $ANDROID_HOME/licenses/android-sdk-license
+        echo -e "\n84831b9409646a918e30573bab4c9c91346d8abd" > $ANDROID_HOME/licenses/android-sdk-preview-license
+        echo -e "\nd975f751698a77b662f1254ddbeed3901e976f5a" > $ANDROID_HOME/licenses/intel-android-extra-license
+        
+        yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null 2>&1 || true
+        
+        echo "🔧 === INSTALANDO COMPONENTES ANDROID SDK ==="
+        $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "platform-tools"
+        $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "platforms;android-34"
+        $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "platforms;android-33"
+        $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "build-tools;34.0.0"
+        $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "build-tools;33.0.2"
+        $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "build-tools;33.0.0"
+        
+        echo "🛠️ === CONFIGURANDO PATH COMPLETO PARA AIDL ==="
+        echo "$ANDROID_HOME/build-tools/34.0.0" >> $GITHUB_PATH
+        echo "$ANDROID_HOME/build-tools/33.0.2" >> $GITHUB_PATH
+        echo "$ANDROID_HOME/build-tools/33.0.0" >> $GITHUB_PATH
+        echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
+        
+        # Configurar variables de entorno para pasos siguientes
+        echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+        echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> $GITHUB_ENV
+        
+        echo "🔍 === VERIFICACIÓN COMPLETA DE AIDL ==="
+        AIDL_FOUND=false
+        for version in "34.0.0" "33.0.2" "33.0.0"; do
+          AIDL_PATH="$ANDROID_HOME/build-tools/$version/aidl"
+          if [ -f "$AIDL_PATH" ]; then
+            echo "✅ AIDL encontrado en build-tools/$version"
+            chmod +x "$AIDL_PATH"
+            if "$AIDL_PATH" --help > /dev/null 2>&1; then
+              echo "✅ AIDL funciona correctamente en versión $version"
+              AIDL_FOUND=true
+              break
+            fi
+          fi
+        done
+        
+        if [ "$AIDL_FOUND" = false ]; then
+          echo "🚨 ERROR: AIDL no encontrado"
+          exit 1
+        fi
+        
+        echo "🔧 === CONFIGURANDO PERMISOS ==="
+        find $ANDROID_HOME/build-tools -name "*" -type f -exec chmod +x {} \; 2>/dev/null || true
+        find $ANDROID_HOME/platform-tools -name "*" -type f -exec chmod +x {} \; 2>/dev/null || true
+        
+        echo "✅ Configuración de Android SDK completada"
+        
+    - name: Cache Gradle dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-
+          
+    - name: Setup Gradle
+      run: |
+        # Configurar gradle.properties
+        cat > gradle.properties << EOF
+        org.gradle.daemon=false
+        org.gradle.parallel=true
+        org.gradle.configureondemand=false
+        org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m
+        android.useAndroidX=true
+        android.enableJetifier=true
+        android.enableBuildCache=true
+        EOF
+        
+        # Dar permisos a gradlew si existe
+        if [ -f "gradlew" ]; then
+          chmod +x gradlew
+        fi
+        
+    - name: Clean project
+      run: |
+        if [ -f "gradlew" ]; then
+          ./gradlew clean
         else
-            echo "⚠️  AIDL encontrado pero no funciona en versión $version"
+          gradle clean
         fi
-    else
-        echo "❌ AIDL no encontrado en build-tools/$version"
-    fi
-done
-
-if [ "$AIDL_FOUND" = false ]; then
-    echo "🚨 ERROR CRÍTICO: AIDL no encontrado en ninguna versión"
-    echo "Intentando instalación de emergencia..."
-    
-    # Instalación de emergencia con versiones más antiguas
-    $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "build-tools;31.0.0"
-    $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "build-tools;30.0.3"
-    
-    export PATH=$PATH:$ANDROID_HOME/build-tools/31.0.0
-    export PATH=$PATH:$ANDROID_HOME/build-tools/30.0.3
-    
-    for version in "31.0.0" "30.0.3"; do
-        if [ -f "$ANDROID_HOME/build-tools/$version/aidl" ]; then
-            chmod +x "$ANDROID_HOME/build-tools/$version/aidl"
-            echo "✅ AIDL de emergencia encontrado en $version"
-            AIDL_FOUND=true
-            AIDL_VERSION=$version
-            break
+        
+    - name: Build APK
+      run: |
+        echo "🔨 === COMPILANDO APK ==="
+        if [ -f "gradlew" ]; then
+          ./gradlew assembleRelease --stacktrace --info
+        else
+          gradle assembleRelease --stacktrace --info
         fi
-    done
-fi
-
-if [ "$AIDL_FOUND" = false ]; then
-    echo "💥 FALLO TOTAL: No se pudo instalar AIDL"
-    exit 1
-fi
-
-echo "🔧 === CONFIGURANDO PERMISOS COMPLETOS ==="
-# Dar permisos a todos los ejecutables
-find $ANDROID_HOME/build-tools -name "*" -type f -exec chmod +x {} \; 2>/dev/null || true
-find $ANDROID_HOME/platform-tools -name "*" -type f -exec chmod +x {} \; 2>/dev/null || true
-
-echo "📊 === INFORMACIÓN COMPLETA DEL SISTEMA ==="
-echo "🏠 ANDROID_HOME: $ANDROID_HOME"
-echo "🏗️  ANDROID_SDK_ROOT: $ANDROID_SDK_ROOT"
-echo "🎯 AIDL preferido: $PREFERRED_AIDL_PATH/aidl"
-echo "📦 Versión AIDL activa: $AIDL_VERSION"
-
-echo ""
-echo "📋 Componentes instalados:"
-$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --list_installed | grep -E "(build-tools|platform)"
-
-echo ""
-echo "🔍 Verificación de comandos:"
-which aidl && echo "✅ aidl disponible en PATH" || echo "⚠️  aidl no está en PATH"
-echo "🔧 Ubicaciones de AIDL:"
-find $ANDROID_HOME -name "aidl" -type f -exec ls -la {} \; 2>/dev/null || echo "No se encontraron archivos aidl"
-
-echo ""
-echo "🧪 === PRUEBA DE FUNCIONAMIENTO AIDL ==="
-if [ -f "$PREFERRED_AIDL_PATH/aidl" ]; then
-    echo "Probando AIDL..."
-    "$PREFERRED_AIDL_PATH/aidl" --help && echo "✅ AIDL responde correctamente" || echo "❌ AIDL no responde"
-fi
-
-echo "🏗️  === CONFIGURACIÓN DE GRADLE ==="
-# Setup de Java si no está configurado
-if [ -z "$JAVA_HOME" ]; then
-    export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
-    echo "☕ JAVA_HOME configurado: $JAVA_HOME"
-fi
-
-# Configurar Gradle Wrapper si no existe
-if [ ! -f "gradlew" ]; then
-    echo "📦 Inicializando Gradle Wrapper..."
-    gradle wrapper --gradle-version=8.0
-fi
-
-# Dar permisos al script de Gradle
-chmod +x gradlew
-
-echo "⚙️  === CREANDO CONFIGURACIÓN GRADLE OPTIMIZADA ==="
-# Crear gradle.properties optimizado para CI
-cat > gradle.properties << EOF
-# Configuración optimizada para CI/CD
-org.gradle.daemon=false
-org.gradle.parallel=true
-org.gradle.configureondemand=false
-org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m -XX:+HeapDumpOnOutOfMemoryError
-org.gradle.caching=true
-
-# Android específico
-android.useAndroidX=true
-android.enableJetifier=true
-android.enableBuildCache=true
-android.enableR8.fullMode=true
-
-# Build específico
-android.builder.sdkDownload=false
-android.experimental.enableSourceSetPathsMap=true
-EOF
-
-echo "🧹 === LIMPIEZA DE PROYECTO ==="
-echo "Limpiando proyecto anterior..."
-./gradlew clean --stacktrace
-
-echo "🔨 === COMPILANDO APK ==="
-echo "Iniciando compilación con información detallada..."
-./gradlew assembleRelease --stacktrace --info --debug
-
-echo "🔍 === VERIFICANDO RESULTADOS ==="
-echo "📱 APKs generados:"
-find . -name "*.apk" -type f -exec ls -lh {} \;
-
-echo ""
-echo "📁 Ubicaciones de archivos:"
-find . -name "*.apk" -type f | head -10
-
-echo ""
-echo "✅ === COMPILACIÓN COMPLETADA EXITOSAMENTE ==="
-echo "🎉 AIDL instalado y funcionando en versión: $AIDL_VERSION"
-echo "📱 APK listo para deployment"
-
-# Crear reporte final
-cat > build_report.txt << EOF
-=== REPORTE DE COMPILACIÓN ===
-Fecha: $(date)
-ANDROID_HOME: $ANDROID_HOME
-AIDL Versión: $AIDL_VERSION
-AIDL Path: $PREFERRED_AIDL_PATH/aidl
-APKs generados: $(find . -name "*.apk" -type f | wc -l)
-
-Componentes instalados:
-$($ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --list_installed | grep -E "(build-tools|platform)")
-EOF
-
-echo "📄 Reporte guardado en: build_report.txt"
-echo "🏁 ¡SCRIPT COMPLETADO CON ÉXITO!"
+        
+    - name: Verify APK
+      run: |
+        echo "🔍 === VERIFICANDO RESULTADOS ==="
+        echo "📱 APKs generados:"
+        find . -name "*.apk" -type f -exec ls -lh {} \;
+        
+    - name: Upload APK artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: android-apk
+        path: |
+          **/*.apk
+          **/build/outputs/apk/**/*.apk
+        retention-days: 30
+        
+    - name: Upload build reports
+      uses: actions/upload-artifact@v4
+      if: failure()
+      with:
+        name: build-reports
+        path: |
+          **/build/reports/
+          **/build/outputs/logs/
+        retention-days: 7
