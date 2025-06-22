@@ -1,72 +1,98 @@
-name: Android APK Build
+#!/bin/bash
 
-on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+# Script mejorado para compilación de APK con soporte completo para AIDL
+set -e
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
+echo "=== Configurando entorno Android ==="
 
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: recursive
+# Variables de entorno
+export ANDROID_HOME=$PWD/android-sdk
+export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin
+export PATH=$PATH:$ANDROID_HOME/platform-tools
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
+# Crear directorios necesarios
+mkdir -p $ANDROID_HOME/cmdline-tools
 
-    - name: Install buildozer and other dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install buildozer cython
+echo "=== Descargando Android SDK Command Line Tools ==="
+wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+unzip -q commandlinetools-linux-9477386_latest.zip
+mv cmdline-tools $ANDROID_HOME/cmdline-tools/latest
 
-    - name: Set up Java (JDK 17 is recommended for recent Android SDKs)
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'temurin'
-        java-version: '17'
+echo "=== Aceptando licencias automáticamente ==="
+yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null 2>&1 || true
 
-    - name: Accept Android SDK licenses and install platform-tools/build-tools
-      run: |
-        echo "Aceptando licencias de Android SDK..."
-        yes | sdkmanager --licenses > /dev/null || true
+echo "=== Instalando componentes Android SDK ==="
+# Instalar componentes esenciales
+$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "platform-tools"
+$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "platforms;android-34"
+$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "platforms;android-33"
+$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "build-tools;34.0.0"
+$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "build-tools;33.0.0"
 
-        echo "Instalando Android SDK Platform-Tools y Build-Tools 36.0.0..."
-        # Asegúrate de que platform-tools y build-tools;36.0.0 se instalen después de aceptar las licencias.
-        # sdkmanager se ubica en el directorio tools/bin dentro de la instalación del SDK.
-        # Definimos ANDROID_HOME explícitamente para sdkmanager.
-        export ANDROID_HOME=/home/runner/.buildozer/android/platform/android-sdk
-        $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "build-tools;36.0.0" || true
-        # Nota: La ruta a sdkmanager puede variar ligeramente dependiendo de la versión de commandlinetools.
-        # Con commandlinetools-linux-6514223_latest.zip, sdkmanager suele estar en cmdline-tools/latest/bin.
-        # Si sigue fallando, podrías probar con $ANDROID_HOME/tools/bin/sdkmanager, aunque es una ruta más antigua.
+echo "=== Configurando PATH para AIDL ==="
+# Agregar múltiples versiones de build-tools al PATH
+export PATH=$PATH:$ANDROID_HOME/build-tools/34.0.0
+export PATH=$PATH:$ANDROID_HOME/build-tools/33.0.0
 
-    - name: Configure Buildozer for Android
-      run: |
-        buildozer init || true
+echo "=== Verificando instalación de AIDL ==="
+# Verificar que AIDL esté disponible
+AIDL_FOUND=false
+for version in "34.0.0" "33.0.0"; do
+    if [ -f "$ANDROID_HOME/build-tools/$version/aidl" ]; then
+        echo "✓ AIDL encontrado en build-tools/$version"
+        export AIDL_PATH="$ANDROID_HOME/build-tools/$version"
+        AIDL_FOUND=true
+        break
+    fi
+done
 
-    - name: Build Android Debug APK
-      run: |
-        echo "🔧 Verificando configuración final..."
-        java -version
-        python3 --version
-        buildozer --version
-        echo "🚀 Iniciando build del APK..."
-        buildozer android debug --verbose
-      env:
-        # Asegura que las rutas del SDK y NDK estén correctamente configuradas para buildozer.
-        ANDROID_HOME: /home/runner/.buildozer/android/platform/android-sdk
-        ANDROID_NDK_HOME: /home/runner/.buildozer/android/platform/android-ndk-r25b # Revisa tu log si usas una versión de NDK diferente.
+if [ "$AIDL_FOUND" = false ]; then
+    echo "⚠️  AIDL no encontrado, intentando instalación alternativa..."
+    # Intentar con versiones anteriores
+    $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "build-tools;32.0.0"
+    $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "build-tools;31.0.0"
+    export PATH=$PATH:$ANDROID_HOME/build-tools/32.0.0
+    export PATH=$PATH:$ANDROID_HOME/build-tools/31.0.0
+fi
 
-    - name: Upload APK artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: android-apk
-        path: bin/*.apk
+echo "=== Configurando permisos ==="
+# Dar permisos de ejecución
+chmod +x $ANDROID_HOME/build-tools/*/aidl 2>/dev/null || true
+chmod +x $ANDROID_HOME/platform-tools/* 2>/dev/null || true
+
+echo "=== Información del sistema ==="
+echo "ANDROID_HOME: $ANDROID_HOME"
+echo "PATH actualizado con build-tools"
+which aidl || echo "AIDL command not found in PATH"
+ls -la $ANDROID_HOME/build-tools/*/aidl 2>/dev/null || echo "No AIDL binary found"
+
+echo "=== Preparando Gradle ==="
+# Configurar Gradle Wrapper si no existe
+if [ ! -f "gradlew" ]; then
+    gradle wrapper
+fi
+
+# Dar permisos al script de Gradle
+chmod +x gradlew
+
+echo "=== Configurando gradle.properties para CI ==="
+# Crear o actualizar gradle.properties
+cat > gradle.properties << EOF
+org.gradle.daemon=false
+org.gradle.parallel=false
+org.gradle.configureondemand=false
+org.gradle.jvmargs=-Xmx2048m -XX:MaxMetaspaceSize=512m
+android.useAndroidX=true
+android.enableJetifier=true
+EOF
+
+echo "=== Limpiando proyecto ==="
+./gradlew clean
+
+echo "=== Compilando APK ==="
+./gradlew assembleRelease --stacktrace --info
+
+echo "=== Verificando APK generado ==="
+find . -name "*.apk" -type f | head -5
+
+echo "✅ Compilación completada exitosamente"
