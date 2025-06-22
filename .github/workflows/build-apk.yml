@@ -9,16 +9,16 @@ on:
 
 jobs:
   build-apk:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     
     steps:
     - name: 🚀 Checkout Repository
       uses: actions/checkout@v4
       
     - name: 🐍 Setup Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
-        python-version: '3.9'
+        python-version: '3.10'
         
     - name: ☕ Setup Java JDK
       uses: actions/setup-java@v4
@@ -27,7 +27,7 @@ jobs:
         java-version: '17'
         
     - name: 📦 Cache Dependencies
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: |
           ~/.cache/pip
@@ -38,8 +38,8 @@ jobs:
           
     - name: 🔧 Install System Dependencies
       run: |
-        sudo apt update
-        sudo apt install -y \
+        sudo apt update -qq
+        sudo apt install -y --no-install-recommends \
           git \
           zip \
           unzip \
@@ -47,6 +47,7 @@ jobs:
           python3-pip \
           python3-setuptools \
           python3-dev \
+          python3-distutils \
           build-essential \
           autoconf \
           automake \
@@ -162,7 +163,7 @@ jobs:
         find . -name "*.apk" -type f -exec ls -la {} \;
         
     - name: 📦 Upload APK Artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: aviator-apk-debug
         path: bin/*.apk
@@ -205,7 +206,7 @@ jobs:
         echo "🎉 ¡BUILD COMPLETADO EXITOSAMENTE!"
         echo ""
         echo "📊 Resumen del Build:"
-        echo "- Python: $(python --version)"
+        echo "          - Python: $(python3 --version)"
         echo "- Java: $(java -version 2>&1 | head -n 1)"
         echo "- Buildozer: $(buildozer version)"
         echo "- Commit: ${{ github.sha }}"
