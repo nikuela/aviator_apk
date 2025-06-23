@@ -13,25 +13,27 @@ jobs:
     - name: Clonar el repositorio
       uses: actions/checkout@v3
 
-    - name: Instalar dependencias de sistema
+    - name: Instalar dependencias del sistema
       run: |
         sudo apt update
         sudo apt install -y python3-pip zip unzip openjdk-17-jdk wget
         pip3 install --upgrade pip
         pip3 install buildozer Cython
 
-    - name: Crear archivo de licencias y aceptar automáticamente
+    - name: Aceptar licencias Android SDK
       run: |
         mkdir -p $HOME/.android
         touch $HOME/.android/repositories.cfg
-        yes | buildozer android accept_license
+        yes | buildozer android accept_license || true
 
-    - name: Inicializar buildozer.spec si no existe
+    - name: Inicializar buildozer (si no existe)
       run: buildozer init || true
 
-    - name: Instalar build-tools 36.0.0 (forzar)
+    - name: Instalar build-tools 33 manualmente
       run: |
-        yes | $HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager "build-tools;36.0.0" "platform-tools" --sdk_root=$HOME/.buildozer/android/platform/android-sdk
+        yes | $HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager \
+          "platform-tools" "build-tools;33.0.0" "platforms;android-33" \
+          --sdk_root=$HOME/.buildozer/android/platform/android-sdk || true
 
     - name: Validar archivo buildozer.spec
       run: |
