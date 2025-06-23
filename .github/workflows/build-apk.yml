@@ -1,39 +1,51 @@
-[app]
-title = MiApp
-package.name = miapp
-package.domain = org.tudominio
-source.dir = .
-source.include_exts = py,png,jpg,kv,atlas
-version = 0.1
-requirements = python3,kivy
-orientation = portrait
-osx.kivy_version = 2.3.0
+name: Build Kivy APK with Buildozer
 
-[buildozer]
-log_level = 2
-warn_on_root = 1
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
 
-[android]
-android.api = 34
-android.arch = arm64-v8a
-# android.minapi = 21
-# android.ndk = 25b
-# android.gradle_dependencies = 
-# android.permissions = INTERNET
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-# Si necesitas permisos, descomenta y agrega:
-# android.permissions = INTERNET,WRITE_EXTERNAL_STORAGE
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
-# Si necesitas incluir archivos adicionales, descomenta y ajusta:
-# source.include_patterns = assets/*,images/*
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y zip unzip openjdk-17-jdk python3-pip python3-setuptools python3-wheel git
 
-# Si usas dependencias específicas de pip, agrégalas en requirements:
-# requirements = python3,kivy,requests
+      - name: Install Buildozer and dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          pip install --upgrade buildozer cython python-for-android
 
-# Si usas librerías nativas, puedes definirlas:
-# android.add_jars = libs/*.jar
-# android.add_aars = libs/*.aar
+      # Primer build para forzar descarga de SDK y tools (puede fallar, es normal)
+      - name: Prepare SDK (first run to trigger download)
+        run: buildozer android debug || true
 
-# No fuerces build-tools version aquí
+      # Acepta licencias del SDK de Android tras la descarga
+      - name: Accept Android SDK licenses
+        run: yes | $HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
-# Otros ajustes avanzados aquí si hace falta
+      # Build final y real del APK
+      - name: Build APK with Buildozer
+        run: buildozer android debug
+
+      - name: List bin directory
+        run: ls -lah bin/ || echo "No bin directory"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk
+          path: bin/*.apk
+          if-no-files-found: error
