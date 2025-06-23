@@ -28,15 +28,15 @@ jobs:
           python3 -m pip install --upgrade pip
           pip install --upgrade buildozer cython python-for-android
 
-      # Primer build para forzar descarga de SDK y tools (puede fallar, es normal)
+      # Primera ejecución para que descargue el SDK y herramientas (si falla, es normal)
       - name: Prepare SDK (first run to trigger download)
         run: buildozer android debug || true
 
-      # Acepta licencias del SDK de Android tras la descarga
+      # Ahora acepta las licencias
       - name: Accept Android SDK licenses
         run: yes | $HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
-      # Build final y real del APK
+      # Build final
       - name: Build APK with Buildozer
         run: buildozer android debug
 
