@@ -14,86 +14,18 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
       
-    - name: Setup JDK 11
+    # ⚠️ CAMBIO CRÍTICO: Java 17 en lugar de Java 11
+    - name: Setup JDK 17
       uses: actions/setup-java@v4
       with:
-        java-version: '11'
+        java-version: '17'
         distribution: 'temurin'
         
-    - name: Setup Android SDK with AIDL
-      run: |
-        echo "🚀 === INICIANDO CONFIGURACIÓN COMPLETA ANDROID SDK CON AIDL ==="
-        
-        # Variables de entorno principales
-        export ANDROID_HOME=$PWD/android-sdk
-        export ANDROID_SDK_ROOT=$ANDROID_HOME
-        export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin
-        export PATH=$PATH:$ANDROID_HOME/platform-tools
-        
-        # Crear directorios necesarios
-        echo "📁 Creando estructura de directorios..."
-        mkdir -p $ANDROID_HOME/cmdline-tools
-        mkdir -p $ANDROID_HOME/platforms
-        mkdir -p $ANDROID_HOME/build-tools
-        mkdir -p $ANDROID_HOME/platform-tools
-        
-        echo "⬇️ === DESCARGANDO ANDROID SDK COMMAND LINE TOOLS ==="
-        wget -q --show-progress https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
-        echo "📦 Extrayendo Command Line Tools..."
-        unzip -q commandlinetools-linux-9477386_latest.zip
-        mv cmdline-tools $ANDROID_HOME/cmdline-tools/latest
-        
-        echo "📋 === ACEPTANDO TODAS LAS LICENCIAS AUTOMÁTICAMENTE ==="
-        mkdir -p $ANDROID_HOME/licenses
-        echo -e "\n8933bad161af4178b1185d1a37fbf41ea5269c55" > $ANDROID_HOME/licenses/android-sdk-license
-        echo -e "\n84831b9409646a918e30573bab4c9c91346d8abd" > $ANDROID_HOME/licenses/android-sdk-preview-license
-        echo -e "\nd975f751698a77b662f1254ddbeed3901e976f5a" > $ANDROID_HOME/licenses/intel-android-extra-license
-        
-        yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null 2>&1 || true
-        
-        echo "🔧 === INSTALANDO COMPONENTES ANDROID SDK ==="
-        $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "platform-tools"
-        $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "platforms;android-34"
-        $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "platforms;android-33"
-        $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "build-tools;34.0.0"
-        $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "build-tools;33.0.2"
-        $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "build-tools;33.0.0"
-        
-        echo "🛠️ === CONFIGURANDO PATH COMPLETO PARA AIDL ==="
-        echo "$ANDROID_HOME/build-tools/34.0.0" >> $GITHUB_PATH
-        echo "$ANDROID_HOME/build-tools/33.0.2" >> $GITHUB_PATH
-        echo "$ANDROID_HOME/build-tools/33.0.0" >> $GITHUB_PATH
-        echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
-        
-        # Configurar variables de entorno para pasos siguientes
-        echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
-        echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> $GITHUB_ENV
-        
-        echo "🔍 === VERIFICACIÓN COMPLETA DE AIDL ==="
-        AIDL_FOUND=false
-        for version in "34.0.0" "33.0.2" "33.0.0"; do
-          AIDL_PATH="$ANDROID_HOME/build-tools/$version/aidl"
-          if [ -f "$AIDL_PATH" ]; then
-            echo "✅ AIDL encontrado en build-tools/$version"
-            chmod +x "$AIDL_PATH"
-            if "$AIDL_PATH" --help > /dev/null 2>&1; then
-              echo "✅ AIDL funciona correctamente en versión $version"
-              AIDL_FOUND=true
-              break
-            fi
-          fi
-        done
-        
-        if [ "$AIDL_FOUND" = false ]; then
-          echo "🚨 ERROR: AIDL no encontrado"
-          exit 1
-        fi
-        
-        echo "🔧 === CONFIGURANDO PERMISOS ==="
-        find $ANDROID_HOME/build-tools -name "*" -type f -exec chmod +x {} \; 2>/dev/null || true
-        find $ANDROID_HOME/platform-tools -name "*" -type f -exec chmod +x {} \; 2>/dev/null || true
-        
-        echo "✅ Configuración de Android SDK completada"
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+      with:
+        api-level: 34
+        build-tools: 34.0.0
         
     - name: Cache Gradle dependencies
       uses: actions/cache@v4
@@ -105,7 +37,7 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-gradle-
           
-    - name: Setup Android Project
+    - name: Setup Android Project Structure
       run: |
         echo "🔍 === VERIFICANDO ESTRUCTURA DEL PROYECTO ==="
         
@@ -114,9 +46,8 @@ jobs:
           echo "❌ No se detectó proyecto Android. Creando estructura básica..."
           
           # Crear estructura mínima
-          mkdir -p app/src/main/java/com/example/myapp
-          mkdir -p app/src/main/res/layout
-          mkdir -p app/src/main/res/values
+          mkdir -p app/src/main/java/com/aviator/game
+          mkdir -p app/src/main/res/{layout,values,drawable,mipmap-hdpi,mipmap-mdpi,mipmap-xhdpi,mipmap-xxhdpi,mipmap-xxxhdpi}
           mkdir -p app/src/main/res/xml
           
           # Crear settings.gradle
@@ -128,71 +59,118 @@ jobs:
                 gradlePluginPortal()
             }
         }
+        
         dependencyResolutionManagement {
             repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
             repositories {
                 google()
                 mavenCentral()
+                maven { url 'https://jitpack.io' }
             }
         }
-        rootProject.name = "MyApp"
+        
+        rootProject.name = "AviatorGame"
         include ':app'
         GRADLE_EOF
           
-          # Crear build.gradle raíz
+          # Crear build.gradle raíz - VERSIÓN ACTUALIZADA
           cat > build.gradle << 'GRADLE_EOF'
+        // Top-level build file where you can add configuration options common to all sub-projects/modules.
         plugins {
             id 'com.android.application' version '8.1.4' apply false
+            id 'org.jetbrains.kotlin.android' version '1.9.10' apply false
         }
+        
         task clean(type: Delete) {
             delete rootProject.buildDir
         }
         GRADLE_EOF
           
-          # Crear app/build.gradle
+          # Crear app/build.gradle - CONFIGURACIÓN ACTUALIZADA
           cat > app/build.gradle << 'GRADLE_EOF'
         plugins {
             id 'com.android.application'
         }
+        
         android {
-            namespace 'com.example.myapp'
+            namespace 'com.aviator.game'
             compileSdk 34
+            
             defaultConfig {
-                applicationId "com.example.myapp"
-                minSdk 21
+                applicationId "com.aviator.game"
+                minSdk 24
                 targetSdk 34
                 versionCode 1
                 versionName "1.0"
+                
+                testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
             }
+            
             buildTypes {
                 release {
                     minifyEnabled false
+                    proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
                     signingConfig signingConfigs.debug
                 }
+                debug {
+                    debuggable true
+                    minifyEnabled false
+                }
             }
+            
             compileOptions {
-                sourceCompatibility JavaVersion.VERSION_1_8
-                targetCompatibility JavaVersion.VERSION_1_8
+                sourceCompatibility JavaVersion.VERSION_17
+                targetCompatibility JavaVersion.VERSION_17
+            }
+            
+            buildFeatures {
+                viewBinding true
             }
         }
+        
         dependencies {
+            implementation 'androidx.core:core:1.12.0'
             implementation 'androidx.appcompat:appcompat:1.6.1'
             implementation 'com.google.android.material:material:1.10.0'
+            implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+            implementation 'androidx.lifecycle:lifecycle-viewmodel:2.7.0'
+            implementation 'androidx.lifecycle:lifecycle-livedata:2.7.0'
+            
+            // Para juegos
+            implementation 'androidx.cardview:cardview:1.0.0'
+            implementation 'androidx.recyclerview:recyclerview:1.3.2'
+            
+            testImplementation 'junit:junit:4.13.2'
+            androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+            androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
         }
         GRADLE_EOF
           
           # Crear AndroidManifest.xml
           cat > app/src/main/AndroidManifest.xml << 'XML_EOF'
         <?xml version="1.0" encoding="utf-8"?>
-        <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+        <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+            xmlns:tools="http://schemas.android.com/tools">
+            
+            <uses-permission android:name="android.permission.INTERNET" />
+            <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+            
             <application
                 android:allowBackup="true"
-                android:icon="@android:drawable/ic_launcher"
-                android:label="MyApp"
-                android:theme="@android:style/Theme.Material.Light">
+                android:dataExtractionRules="@xml/data_extraction_rules"
+                android:fullBackupContent="@xml/backup_rules"
+                android:icon="@mipmap/ic_launcher"
+                android:label="@string/app_name"
+                android:roundIcon="@mipmap/ic_launcher_round"
+                android:supportsRtl="true"
+                android:theme="@style/Theme.AviatorGame"
+                tools:targetApi="31">
+                
                 <activity
                     android:name=".MainActivity"
-                    android:exported="true">
+                    android:exported="true"
+                    android:screenOrientation="portrait"
+                    android:theme="@style/Theme.AviatorGame">
                     <intent-filter>
                         <action android:name="android.intent.action.MAIN" />
                         <category android:name="android.intent.category.LAUNCHER" />
@@ -203,62 +181,287 @@ jobs:
         XML_EOF
           
           # Crear MainActivity.java
-          cat > app/src/main/java/com/example/myapp/MainActivity.java << 'JAVA_EOF'
-        package com.example.myapp;
+          cat > app/src/main/java/com/aviator/game/MainActivity.java << 'JAVA_EOF'
+        package com.aviator.game;
+        
         import android.app.Activity;
         import android.os.Bundle;
+        import android.view.View;
+        import android.widget.Button;
+        import android.widget.TextView;
+        import android.widget.Toast;
+        import java.util.Random;
+        
         public class MainActivity extends Activity {
+            private TextView multiplierText;
+            private Button startButton;
+            private Button cashOutButton;
+            private boolean gameRunning = false;
+            private double currentMultiplier = 1.0;
+            private Random random = new Random();
+            
             @Override
             protected void onCreate(Bundle savedInstanceState) {
                 super.onCreate(savedInstanceState);
+                setContentView(R.layout.activity_main);
+                
+                initViews();
+                setupButtons();
+            }
+            
+            private void initViews() {
+                multiplierText = findViewById(R.id.multiplierText);
+                startButton = findViewById(R.id.startButton);
+                cashOutButton = findViewById(R.id.cashOutButton);
+                
+                multiplierText.setText("1.00x");
+                cashOutButton.setEnabled(false);
+            }
+            
+            private void setupButtons() {
+                startButton.setOnClickListener(v -> startGame());
+                cashOutButton.setOnClickListener(v -> cashOut());
+            }
+            
+            private void startGame() {
+                if (!gameRunning) {
+                    gameRunning = true;
+                    currentMultiplier = 1.0;
+                    startButton.setEnabled(false);
+                    cashOutButton.setEnabled(true);
+                    
+                    // Simular juego del aviador
+                    simulateAviatorGame();
+                }
+            }
+            
+            private void simulateAviatorGame() {
+                new Thread(() -> {
+                    try {
+                        while (gameRunning && currentMultiplier < 10.0) {
+                            Thread.sleep(100);
+                            currentMultiplier += 0.01;
+                            
+                            runOnUiThread(() -> {
+                                multiplierText.setText(String.format("%.2fx", currentMultiplier));
+                            });
+                            
+                            // Probabilidad de crash
+                            if (random.nextDouble() < 0.01) {
+                                crash();
+                                break;
+                            }
+                        }
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }).start();
+            }
+            
+            private void cashOut() {
+                if (gameRunning) {
+                    gameRunning = false;
+                    startButton.setEnabled(true);
+                    cashOutButton.setEnabled(false);
+                    
+                    Toast.makeText(this, "Cash out at " + String.format("%.2fx", currentMultiplier), 
+                                 Toast.LENGTH_SHORT).show();
+                }
+            }
+            
+            private void crash() {
+                gameRunning = false;
+                runOnUiThread(() -> {
+                    Toast.makeText(this, "CRASHED at " + String.format("%.2fx", currentMultiplier), 
+                                 Toast.LENGTH_LONG).show();
+                    startButton.setEnabled(true);
+                    cashOutButton.setEnabled(false);
+                    multiplierText.setText("1.00x");
+                });
             }
         }
         JAVA_EOF
           
+          # Crear layout principal
+          cat > app/src/main/res/layout/activity_main.xml << 'XML_EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:padding="16dp"
+            android:gravity="center"
+            android:background="#1a1a2e">
+            
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="AVIATOR GAME"
+                android:textSize="32sp"
+                android:textColor="#ffffff"
+                android:textStyle="bold"
+                android:layout_marginBottom="50dp" />
+            
+            <TextView
+                android:id="@+id/multiplierText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="1.00x"
+                android:textSize="48sp"
+                android:textColor="#00ff00"
+                android:textStyle="bold"
+                android:layout_marginBottom="50dp" />
+            
+            <Button
+                android:id="@+id/startButton"
+                android:layout_width="200dp"
+                android:layout_height="60dp"
+                android:text="START GAME"
+                android:textSize="18sp"
+                android:textColor="#ffffff"
+                android:background="#ff6b6b"
+                android:layout_marginBottom="20dp" />
+            
+            <Button
+                android:id="@+id/cashOutButton"
+                android:layout_width="200dp"
+                android:layout_height="60dp"
+                android:text="CASH OUT"
+                android:textSize="18sp"
+                android:textColor="#ffffff"
+                android:background="#4ecdc4" />
+        </LinearLayout>
+        XML_EOF
+          
           # Crear strings.xml
-          mkdir -p app/src/main/res/values
           cat > app/src/main/res/values/strings.xml << 'XML_EOF'
         <resources>
-            <string name="app_name">MyApp</string>
+            <string name="app_name">Aviator Game</string>
         </resources>
         XML_EOF
           
-          echo "✅ Estructura básica de proyecto Android creada"
+          # Crear colors.xml
+          cat > app/src/main/res/values/colors.xml << 'XML_EOF'
+        <resources>
+            <color name="purple_200">#FFBB86FC</color>
+            <color name="purple_500">#FF6200EE</color>
+            <color name="purple_700">#FF3700B3</color>
+            <color name="teal_200">#FF03DAC5</color>
+            <color name="teal_700">#FF018786</color>
+            <color name="black">#FF000000</color>
+            <color name="white">#FFFFFFFF</color>
+        </resources>
+        XML_EOF
+          
+          # Crear themes.xml
+          cat > app/src/main/res/values/themes.xml << 'XML_EOF'
+        <resources>
+            <style name="Theme.AviatorGame" parent="Theme.AppCompat.Light.DarkActionBar">
+                <item name="colorPrimary">@color/purple_500</item>
+                <item name="colorPrimaryVariant">@color/purple_700</item>
+                <item name="colorOnPrimary">@color/white</item>
+                <item name="colorSecondary">@color/teal_200</item>
+                <item name="colorSecondaryVariant">@color/teal_700</item>
+                <item name="colorOnSecondary">@color/black</item>
+            </style>
+        </resources>
+        XML_EOF
+          
+          # Crear archivos XML de seguridad
+          mkdir -p app/src/main/res/xml
+          cat > app/src/main/res/xml/backup_rules.xml << 'XML_EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <full-backup-content>
+            <!-- Exclude specific files or directories -->
+        </full-backup-content>
+        XML_EOF
+          
+          cat > app/src/main/res/xml/data_extraction_rules.xml << 'XML_EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <data-extraction-rules>
+            <cloud-backup>
+                <!-- Exclude specific files or directories -->
+            </cloud-backup>
+            <device-transfer>
+                <!-- Exclude specific files or directories -->
+            </device-transfer>
+        </data-extraction-rules>
+        XML_EOF
+          
+          # Crear iconos básicos (usando iconos del sistema)
+          echo "Creando iconos básicos..."
+          mkdir -p app/src/main/res/mipmap-hdpi
+          mkdir -p app/src/main/res/mipmap-mdpi  
+          mkdir -p app/src/main/res/mipmap-xhdpi
+          mkdir -p app/src/main/res/mipmap-xxhdpi
+          mkdir -p app/src/main/res/mipmap-xxxhdpi
+          
+          # Crear proguard-rules.pro
+          cat > app/proguard-rules.pro << 'PROGUARD_EOF'
+        # Add project specific ProGuard rules here.
+        -keep public class * extends android.app.Activity
+        -keep public class * extends android.app.Application
+        -keep public class * extends android.app.Service
+        -keep public class * extends android.content.BroadcastReceiver
+        -keep public class * extends android.content.ContentProvider
+        PROGUARD_EOF
+          
+          echo "✅ Estructura completa de proyecto Aviator creada"
         else
           echo "✅ Proyecto Android existente detectado"
         fi
         
-        # Configurar gradle.properties
+        # Configurar gradle.properties - CONFIGURACIÓN CRÍTICA
         cat > gradle.properties << 'PROPS_EOF'
-        org.gradle.daemon=false
+        # Gradle properties for Android build
+        org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8
         org.gradle.parallel=true
-        org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m
+        org.gradle.caching=true
+        org.gradle.daemon=false
+        
+        # Android properties
         android.useAndroidX=true
         android.enableJetifier=true
         android.enableBuildCache=true
+        android.nonTransitiveRClass=false
+        android.defaults.buildfeatures.buildconfig=true
+        android.defaults.buildfeatures.aidl=true
+        android.defaults.buildfeatures.renderscript=true
         PROPS_EOF
         
-        # Crear o actualizar gradlew
+        # Crear gradle wrapper si no existe
         if [ ! -f "gradlew" ]; then
-          gradle wrapper --gradle-version=8.0
+          echo "Creando Gradle Wrapper..."
+          gradle wrapper --gradle-version=8.4
         fi
+        
         chmod +x gradlew
         
         echo "📋 Estructura final del proyecto:"
-        ls -la *.gradle* 2>/dev/null || echo "No gradle files in root"
-        ls -la app/*.gradle* 2>/dev/null || echo "No gradle files in app"
+        ls -la | grep -E "\.(gradle|properties)$" || echo "Archivos gradle creados"
+        ls -la app/ | grep -E "\.(gradle|properties)$" || echo "Archivos gradle de app creados"
         
     - name: Clean project
       run: |
+        echo "🧹 Limpiando proyecto..."
         if [ -f "gradlew" ]; then
-          ./gradlew clean
+          ./gradlew clean --stacktrace
         else
-          gradle clean
+          gradle clean --stacktrace
         fi
         
-    - name: Build APK
+    - name: Build Debug APK
       run: |
-        echo "🔨 === COMPILANDO APK ==="
+        echo "🔨 === COMPILANDO APK DEBUG ==="
+        if [ -f "gradlew" ]; then
+          ./gradlew assembleDebug --stacktrace --info
+        else
+          gradle assembleDebug --stacktrace --info
+        fi
+        
+    - name: Build Release APK
+      run: |
+        echo "🔨 === COMPILANDO APK RELEASE ==="
         if [ -f "gradlew" ]; then
           ./gradlew assembleRelease --stacktrace --info
         else
@@ -271,10 +474,19 @@ jobs:
         echo "📱 APKs generados:"
         find . -name "*.apk" -type f -exec ls -lh {} \;
         
+        # Verificar que al menos un APK fue generado
+        APK_COUNT=$(find . -name "*.apk" -type f | wc -l)
+        if [ $APK_COUNT -eq 0 ]; then
+          echo "❌ No se generaron APKs"
+          exit 1
+        else
+          echo "✅ Se generaron $APK_COUNT APKs"
+        fi
+        
     - name: Upload APK artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: android-apk
+        name: aviator-apk-${{ github.run_number }}
         path: |
           **/*.apk
           **/build/outputs/apk/**/*.apk
@@ -284,7 +496,7 @@ jobs:
       uses: actions/upload-artifact@v4
       if: failure()
       with:
-        name: build-reports
+        name: build-reports-${{ github.run_number }}
         path: |
           **/build/reports/
           **/build/outputs/logs/
