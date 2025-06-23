@@ -28,11 +28,14 @@ jobs:
           python3 -m pip install --upgrade pip
           pip install --upgrade buildozer cython python-for-android
 
-      - name: Build APK with Buildozer
-        run: buildozer android debug
+      - name: Prepare SDK (first run to trigger download)
+        run: buildozer android clean
 
       - name: Accept Android SDK licenses
         run: yes | $HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses || true
+
+      - name: Build APK with Buildozer
+        run: buildozer android debug
 
       - name: List bin directory
         run: ls -lah bin/ || echo "No bin directory"
