@@ -43,6 +43,11 @@ jobs:
       - name: Remove build-tools 36 (if exists)
         run: rm -rf $HOME/.buildozer/android/platform/android-sdk/build-tools/36.0.0 || true
 
+      # Fuerza la instalación de build-tools 34.0.0 y plataforma 34 (esto evita la 36)
+      - name: Ensure Android Build-Tools 34 and platform 34 are installed
+        run: |
+          $HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager --install "build-tools;34.0.0" "platforms;android-34" || true
+
       # Build final del APK
       - name: Build APK with Buildozer
         run: buildozer android debug
