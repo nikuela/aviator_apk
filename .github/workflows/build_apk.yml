@@ -1,63 +1,49 @@
-name: Build Kivy APK with Buildozer
+name: Build APK
 
 on:
+  workflow_dispatch:
   push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
+    branches: [ main ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    - name: Clonar el repositorio
+      uses: actions/checkout@v3
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+    - name: Instalar dependencias de sistema
+      run: |
+        sudo apt update
+        sudo apt install -y python3-pip zip unzip openjdk-17-jdk wget
+        pip3 install --upgrade pip
+        pip3 install buildozer Cython
 
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y zip unzip openjdk-17-jdk python3-pip python3-setuptools python3-wheel git
+    - name: Crear archivo de licencias y aceptar automáticamente
+      run: |
+        mkdir -p $HOME/.android
+        touch $HOME/.android/repositories.cfg
+        yes | buildozer android accept_license
 
-      - name: Install Buildozer and dependencies
-        run: |
-          python3 -m pip install --upgrade pip
-          pip install --upgrade buildozer cython python-for-android
+    - name: Inicializar buildozer.spec si no existe
+      run: buildozer init || true
 
-      # Primer build para descargar SDK/tools (puede fallar, es esperado)
-      - name: Prepare SDK (first run to trigger download)
-        run: buildozer android debug || true
+    - name: Instalar build-tools 36.0.0 (forzar)
+      run: |
+        yes | $HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager "build-tools;36.0.0" "platform-tools" --sdk_root=$HOME/.buildozer/android/platform/android-sdk
 
-      # Acepta licencias del SDK en todas las rutas posibles
-      - name: Accept Android SDK licenses (all locations)
-        run: |
-          yes | $HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses || true
-          yes | $HOME/.buildozer/android/platform/android-sdk/cmdline-tools/bin/sdkmanager --licenses || true
-          yes | $HOME/.buildozer/android/platform/android-sdk/tools/bin/sdkmanager --licenses || true
+    - name: Validar archivo buildozer.spec
+      run: |
+        if [ ! -f buildozer.spec ]; then
+          echo "Falta buildozer.spec" && exit 1
+        fi
 
-      # Elimina build-tools 36 si existe (seguridad extra)
-      - name: Remove build-tools 36 (if exists)
-        run: rm -rf $HOME/.buildozer/android/platform/android-sdk/build-tools/36.0.0 || true
+    - name: Compilar APK
+      run: buildozer android debug
 
-      # Fuerza la instalación de build-tools 34.0.0 y plataforma 34 (esto evita la 36)
-      - name: Ensure Android Build-Tools 34 and platform 34 are installed
-        run: |
-          $HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager --install "build-tools;34.0.0" "platforms;android-34" || true
-
-      # Build final del APK
-      - name: Build APK with Buildozer
-        run: buildozer android debug
-
-      - name: List bin directory
-        run: ls -lah bin/ || echo "No bin directory"
-
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: apk
-          path: bin/*.apk
-          if-no-files-found: error
+    - name: Subir APK como artefacto
+      uses: actions/upload-artifact@v3
+      with:
+        name: APK-Aviator
+        path: bin/*.apk
