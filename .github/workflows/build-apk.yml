@@ -1,48 +1,44 @@
-name: Build Kivy APK with Buildozer
+[app]
+# Información básica de la app
+title = Mi App
+package.name = miapp
+package.domain = com.midominio
 
-on:
-  push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
+# Código fuente
+source.dir = .
+source.include_exts = py,png,jpg,kv,atlas,txt,json
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+# Versión
+version = 0.1
+version.regex = __version__ = ['"](.+)['"]
+version.filename = %(source.dir)s/main.py
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+# Dependencias de Python
+requirements = python3,kivy,kivymd
 
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y zip unzip openjdk-17-jdk python3-pip python3-setuptools python3-wheel git
+# Permisos de Android
+android.permissions = INTERNET,WRITE_EXTERNAL_STORAGE,READ_EXTERNAL_STORAGE
 
-      - name: Install Buildozer and dependencies
-        run: |
-          python3 -m pip install --upgrade pip
-          pip install --upgrade buildozer cython python-for-android
+# Configuración de Android
+android.api = 33
+android.minapi = 21
+android.ndk = 25.1.8937393
+android.sdk = 33
+android.accept_sdk_license = True
 
-      - name: Prepare SDK (first run to trigger download)
-        run: buildozer android release || true
+# Configuración de compilación
+android.gradle_dependencies = 
 
-      - name: Accept Android SDK licenses
-        run: yes | $HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses || true
+# Configuración de orientación
+orientation = portrait
 
-      - name: Build APK with Buildozer
-        run: buildozer android debug
+# Configuración de iconos
+#icon.filename = %(source.dir)s/data/icon.png
 
-      - name: List bin directory
-        run: ls -lah bin/ || echo "No bin directory"
+# Configuración de splash
+#presplash.filename = %(source.dir)s/data/presplash.png
 
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: apk
-          path: bin/*.apk
-          if-no-files-found: error
+[buildozer]
+# Directorio de logs
+log_level = 2
+warn_on_root = 1
