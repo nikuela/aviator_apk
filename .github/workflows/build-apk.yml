@@ -1,44 +1,171 @@
-[app]
-# Información básica de la app
-title = Mi App
-package.name = miapp
-package.domain = com.midominio
+name: Build Android APK
 
-# Código fuente
-source.dir = .
-source.include_exts = py,png,jpg,kv,atlas,txt,json
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
 
-# Versión
-version = 0.1
-version.regex = __version__ = ['"](.+)['"]
-version.filename = %(source.dir)s/main.py
-
-# Dependencias de Python
-requirements = python3,kivy,kivymd
-
-# Permisos de Android
-android.permissions = INTERNET,WRITE_EXTERNAL_STORAGE,READ_EXTERNAL_STORAGE
-
-# Configuración de Android
-android.api = 33
-android.minapi = 21
-android.ndk = 25.1.8937393
-android.sdk = 33
-android.accept_sdk_license = True
-
-# Configuración de compilación
-android.gradle_dependencies = 
-
-# Configuración de orientación
-orientation = portrait
-
-# Configuración de iconos
-#icon.filename = %(source.dir)s/data/icon.png
-
-# Configuración de splash
-#presplash.filename = %(source.dir)s/data/presplash.png
-
-[buildozer]
-# Directorio de logs
-log_level = 2
-warn_on_root = 1
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+          
+    - name: Cache Buildozer global directory
+      uses: actions/cache@v3
+      with:
+        path: ~/.buildozer
+        key: ${{ runner.os }}-buildozer-${{ hashFiles('**/*.spec') }}
+        restore-keys: |
+          ${{ runner.os }}-buildozer-
+          
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          git \
+          python3 \
+          python3-dev \
+          python3-pip \
+          python3-setuptools \
+          python3-wheel \
+          python3-venv \
+          openjdk-11-jdk \
+          unzip \
+          zlib1g-dev \
+          libncurses5-dev \
+          libncursesw5-dev \
+          libtinfo5 \
+          cmake \
+          libffi-dev \
+          libssl-dev \
+          autoconf \
+          libtool \
+          pkg-config \
+          ccache
+          
+    - name: Set up Java environment
+      run: |
+        echo "JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64" >> $GITHUB_ENV
+        echo "PATH=$PATH:/usr/lib/jvm/java-11-openjdk-amd64/bin" >> $GITHUB_ENV
+        
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install buildozer cython
+        
+        # Si tienes requirements.txt, descomenta la siguiente línea
+        # pip install -r requirements.txt
+        
+    - name: Set up Buildozer
+      run: |
+        # Crear directorio buildozer si no existe
+        mkdir -p ~/.buildozer
+        
+        # Inicializar buildozer si no existe buildozer.spec
+        if [ ! -f buildozer.spec ]; then
+          buildozer init
+        fi
+        
+    - name: Download and setup Android SDK
+      run: |
+        # Crear directorios necesarios
+        mkdir -p ~/.buildozer/android/platform
+        
+        # Descargar Android SDK si no existe en cache
+        if [ ! -d ~/.buildozer/android/platform/android-sdk ]; then
+          cd ~/.buildozer/android/platform
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+          unzip -q commandlinetools-linux-9477386_latest.zip
+          mkdir -p android-sdk/cmdline-tools
+          mv cmdline-tools android-sdk/cmdline-tools/latest
+          rm commandlinetools-linux-9477386_latest.zip
+        fi
+        
+        # Configurar variables de entorno
+        echo "ANDROID_SDK_ROOT=$HOME/.buildozer/android/platform/android-sdk" >> $GITHUB_ENV
+        echo "ANDROID_HOME=$HOME/.buildozer/android/platform/android-sdk" >> $GITHUB_ENV
+        echo "PATH=$PATH:$HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_ENV
+        echo "PATH=$PATH:$HOME/.buildozer/android/platform/android-sdk/platform-tools" >> $GITHUB_ENV
+        
+    - name: Accept Android SDK licenses
+      run: |
+        # Asegurar que el SDK manager existe
+        export ANDROID_SDK_ROOT=$HOME/.buildozer/android/platform/android-sdk
+        export ANDROID_HOME=$ANDROID_SDK_ROOT
+        
+        # Crear directorios de licencias
+        mkdir -p $ANDROID_SDK_ROOT/licenses
+        
+        # Aceptar licencias automáticamente
+        echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > $ANDROID_SDK_ROOT/licenses/android-sdk-license
+        echo "84831b9409646a918e30573bab4c9c91346d8abd" > $ANDROID_SDK_ROOT/licenses/android-sdk-preview-license
+        echo "d975f751698a77b662f1254ddbeed3901e976f5a" > $ANDROID_SDK_ROOT/licenses/intel-android-extra-license
+        
+        # Verificar que sdkmanager funciona
+        $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --version || true
+        
+        # Aceptar licencias usando sdkmanager
+        yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --licenses || true
+        
+    - name: Install Android build tools
+      run: |
+        export ANDROID_SDK_ROOT=$HOME/.buildozer/android/platform/android-sdk
+        export ANDROID_HOME=$ANDROID_SDK_ROOT
+        
+        # Instalar herramientas necesarias
+        $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager \
+          "platform-tools" \
+          "platforms;android-33" \
+          "build-tools;33.0.0" \
+          "ndk;25.1.8937393" || true
+          
+    - name: Build APK with Buildozer
+      run: |
+        # Configurar variables de entorno para buildozer
+        export ANDROID_SDK_ROOT=$HOME/.buildozer/android/platform/android-sdk
+        export ANDROID_HOME=$ANDROID_SDK_ROOT
+        export ANDROID_NDK_ROOT=$ANDROID_SDK_ROOT/ndk/25.1.8937393
+        export PATH=$PATH:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin
+        export PATH=$PATH:$ANDROID_SDK_ROOT/platform-tools
+        
+        # Limpiar build anterior si existe
+        buildozer android clean || true
+        
+        # Construir APK
+        buildozer android debug
+        
+    - name: Upload APK artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: android-apk
+        path: bin/*.apk
+        retention-days: 30
+        
+    - name: Upload build logs on failure
+      if: failure()
+      uses: actions/upload-artifact@v3
+      with:
+        name: build-logs
+        path: |
+          .buildozer/
+          *.log
+        retention-days: 7
