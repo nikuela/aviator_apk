@@ -10,36 +10,36 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
-    - name: Install system dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y zip unzip openjdk-17-jdk python3-pip python3-setuptools python3-wheel git
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y zip unzip openjdk-17-jdk python3-pip python3-setuptools python3-wheel git
 
-    - name: Install Buildozer and dependencies
-      run: |
-        python3 -m pip install --upgrade pip
-        pip install --upgrade buildozer cython python-for-android
+      - name: Install Buildozer and dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          pip install --upgrade buildozer cython python-for-android
 
-    - name: Accept Android SDK licenses
-      run: yes | $HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses || true
+      - name: Build APK with Buildozer
+        run: buildozer android debug
 
-    - name: Build APK with Buildozer
-      run: buildozer android debug
+      - name: Accept Android SDK licenses
+        run: yes | $HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
-    - name: List bin directory
-      run: ls -lah bin/ || echo "No bin directory"
+      - name: List bin directory
+        run: ls -lah bin/ || echo "No bin directory"
 
-    - name: Upload APK artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: apk
-        path: bin/*.apk
-        if-no-files-found: error
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk
+          path: bin/*.apk
+          if-no-files-found: error
