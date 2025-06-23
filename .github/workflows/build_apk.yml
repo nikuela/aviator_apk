@@ -1,0 +1,44 @@
+name: Build APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Clonar el repositorio
+      uses: actions/checkout@v3
+
+    - name: Instalar dependencias de sistema
+      run: |
+        sudo apt update
+        sudo apt install -y python3-pip zip unzip openjdk-17-jdk wget
+        pip3 install --upgrade pip
+        pip3 install buildozer Cython
+
+    - name: Aceptar licencias de Android
+      run: |
+        mkdir -p $HOME/.android
+        echo "8933bad161af4178b1185d1a37fbf41ea5269c55" > $HOME/.android/repositories.cfg
+
+    - name: Inicializar Buildozer
+      run: buildozer init || true
+
+    - name: Validar archivo buildozer.spec
+      run: |
+        if [ ! -f buildozer.spec ]; then
+          echo "Falta buildozer.spec" && exit 1
+        fi
+
+    - name: Compilar APK
+      run: buildozer android debug
+
+    - name: Subir APK como artefacto
+      uses: actions/upload-artifact@v3
+      with:
+        name: APK-Aviator
+        path: bin/*.apk
