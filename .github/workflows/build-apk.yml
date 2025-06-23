@@ -23,14 +23,16 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y zip unzip openjdk-17-jdk python3-pip python3-setuptools python3-wheel git
 
-    - name: Install Buildozer & Cython
+    - name: Update pip and install latest buildozer and python-for-android
       run: |
         python3 -m pip install --upgrade pip
-        pip install buildozer cython
+        pip install --upgrade buildozer cython python-for-android
 
-    - name: Build APK with Buildozer
+    - name: Build APK with Buildozer (retry up to 3 times)
       run: |
-        buildozer android debug
+        for i in 1 2 3; do
+          buildozer android debug && break || sleep 30
+        done
 
     - name: Upload APK artifact
       uses: actions/upload-artifact@v4
