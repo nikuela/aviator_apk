@@ -36,7 +36,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install cython buildozer
 
-    - name: Install Android SDK/Build-tools
+    - name: Install Android SDK and Build-Tools
       run: |
         mkdir -p $HOME/android-sdk/cmdline-tools
         cd $HOME/android-sdk/cmdline-tools
@@ -47,17 +47,23 @@ jobs:
         yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk \
           "platform-tools" "platforms;android-33" "build-tools;34.0.0"
 
-    - name: Configure Android env + symlink for Buildozer
+        # CREAR SYMLINK QUE BUILDZOER NECESITA
+        mkdir -p $HOME/android-sdk/tools/bin
+        ln -s $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager $HOME/android-sdk/tools/bin/sdkmanager
+
+    - name: Configure Android environment
       run: |
+        echo "ANDROIDSDK=$HOME/android-sdk" >> $GITHUB_ENV
+        echo "ANDROIDNDK=$HOME/.buildozer/android/platform/android-ndk-r25b" >> $GITHUB_ENV
         echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
+        echo "ANDROIDAPI=33" >> $GITHUB_ENV
+        echo "ANDROIDMINAPI=21" >> $GITHUB_ENV
         echo "$HOME/android-sdk/platform-tools" >> $GITHUB_PATH
         echo "$HOME/android-sdk/build-tools/34.0.0" >> $GITHUB_PATH
         echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
-        echo "ANDROIDAPI=33" >> $GITHUB_ENV
-        echo "ANDROIDMINAPI=21" >> $GITHUB_ENV
 
-        # Crear enlace simbólico donde Buildozer lo busca:
-        mkdir -p ~/.buildozer/android/platform/android-sdk
+        # SYMLINK PARA QUE BUILDZOER DETECTE BIEN EL SDK
+        mkdir -p ~/.buildozer/android/platform
         ln -sfn $HOME/android-sdk ~/.buildozer/android/platform/android-sdk
 
     - name: Build APK
