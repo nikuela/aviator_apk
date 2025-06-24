@@ -1,9 +1,17 @@
 from kivy.app import App
 from kivy.uix.label import Label
+from kivy.core.window import Window
 
-class AviatorPredictor(App):
+class AviatorApp(App):
     def build(self):
-        return Label(text='Hola Aviator 🔥', font_size='40sp')
+        Window.clearcolor = (0.1, 0.1, 0.1, 1)
+        return Label(
+            text="🚀 Aviator Predictor APK Generado con Éxito!",
+            font_size='20sp',
+            color=(1, 1, 1, 1),
+            halign="center",
+            valign="middle"
+        )
 
 if __name__ == '__main__':
-    AviatorPredictor().run()
+    AviatorApp().run()
