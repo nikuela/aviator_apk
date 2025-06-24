@@ -21,7 +21,7 @@ jobs:
     - name: Install system dependencies
       run: |
         sudo apt update
-        sudo apt install -y zip unzip openjdk-17-jdk git libncurses5
+        sudo apt install -y zip unzip openjdk-17-jdk git libncurses6
 
     - name: Set up Android SDK
       run: |
@@ -32,8 +32,8 @@ jobs:
         mv cmdline-tools latest
         export ANDROID_SDK_ROOT=$HOME/android-sdk
         export PATH=$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$PATH
-        yes | sdkmanager --licenses
-        yes | sdkmanager \
+        yes | sdkmanager --sdk_root=$ANDROID_SDK_ROOT --licenses
+        yes | sdkmanager --sdk_root=$ANDROID_SDK_ROOT \
           "platform-tools" \
           "platforms;android-33" \
           "build-tools;33.0.2" \
@@ -55,7 +55,7 @@ jobs:
         echo "$HOME/android-sdk/build-tools/33.0.2" >> $GITHUB_PATH
 
     - name: Build APK
-      run: buildozer android debug --verbose
+      run: buildozer android debug
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
