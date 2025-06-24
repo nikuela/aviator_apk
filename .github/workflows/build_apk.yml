@@ -10,44 +10,49 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
+      - name: Checkout código
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-
-      - name: Install system dependencies
+      - name: Instalar dependencias del sistema
         run: |
           sudo apt update
-          sudo apt install -y python3-pip python3-setuptools git zip unzip openjdk-11-jdk libffi-dev libssl-dev python3-dev libjpeg-dev zlib1g-dev
+          sudo apt install -y unzip openjdk-17-jdk python3-pip zip libfreetype6-dev pkg-config libffi-dev libssl-dev
           pip install --upgrade pip
-          pip install buildozer cython
+          pip install buildozer
 
-      - name: Manually install Android SDK & accept licenses
+      - name: Configurar entorno Android
         run: |
-          mkdir -p $HOME/.android
           mkdir -p $HOME/android-sdk
-          cd $HOME/android-sdk
-          wget https://dl.google.com/android/repository/commandlinetools-linux-10406996_latest.zip
-          unzip commandlinetools-linux-*.zip -d temp
-          mkdir -p cmdline-tools/latest
-          mv temp/cmdline-tools/* cmdline-tools/latest/
-          mkdir -p cmdline-tools/tools/bin
-          ln -s $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager $HOME/android-sdk/cmdline-tools/tools/bin/sdkmanager
-          yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk --licenses
-          yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk "platform-tools" "platforms;android-33" "build-tools;33.0.2"
+          echo "ANDROIDSDK=$HOME/android-sdk" >> $GITHUB_ENV
+          echo "ANDROID_NDK_HOME=$HOME/android-ndk" >> $GITHUB_ENV
+          echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
+          echo "PATH=$HOME/android-sdk/cmdline-tools/latest/bin:$HOME/android-sdk/platform-tools:$PATH" >> $GITHUB_ENV
 
-      - name: Build APK
-        env:
-          ANDROIDSDK: $HOME/android-sdk
+      - name: Instalar SDK Command-line Tools
         run: |
-          export ANDROIDSDK=$HOME/android-sdk
-          export PATH=$ANDROIDSDK/cmdline-tools/latest/bin:$ANDROIDSDK/platform-tools:$PATH
-          buildozer -v android debug log_level=2
+          mkdir -p $HOME/android-sdk/cmdline-tools
+          cd $HOME/android-sdk/cmdline-tools
+          curl -s https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -o cmdline-tools.zip
+          unzip cmdline-tools.zip
+          mv cmdline-tools latest
 
-      - name: Upload APK
+      - name: Fix sdkmanager path (buildozer espera otra ruta)
+        run: |
+          mkdir -p $HOME/android-sdk/tools/bin
+          ln -s $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager $HOME/android-sdk/tools/bin/sdkmanager
+
+      - name: Aceptar licencias
+        run: yes | sdkmanager --licenses || true
+
+      - name: Instalar componentes necesarios con sdkmanager
+        run: |
+          sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2" "ndk;25.2.9519653"
+
+      - name: Compilar APK
+        run: |
+          buildozer android debug
+
+      - name: Subir APK generado
         uses: actions/upload-artifact@v4
         with:
           name: AviatorPredictor-APK
