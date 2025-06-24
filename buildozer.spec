@@ -12,3 +12,4 @@ android.permissions = INTERNET,CAMERA
 android.api = 33
 android.minapi = 21
 android.archs = armeabi-v7a,arm64-v8a
+android.sdk_path = /home/runner/android-sdk
