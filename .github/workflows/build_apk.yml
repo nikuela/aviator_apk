@@ -23,7 +23,7 @@ jobs:
           python3 -m pip install --upgrade pip
           pip install --user buildozer cython==0.29.36
 
-      - name: Set environment variables
+      - name: Set env variables
         run: |
           echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
           echo "PATH=$HOME/.local/bin:$HOME/android-sdk/cmdline-tools/latest/bin:$HOME/ant/bin:$PATH" >> $GITHUB_ENV
@@ -31,18 +31,17 @@ jobs:
       - name: Install Android SDK
         run: |
           mkdir -p $HOME/android-sdk/cmdline-tools
-          curl -o commandlinetools.zip https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
-          unzip -q commandlinetools.zip -d $HOME/android-sdk/cmdline-tools
+          curl -o cmdtools.zip https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+          unzip -q cmdtools.zip -d $HOME/android-sdk/cmdline-tools
           mv $HOME/android-sdk/cmdline-tools/cmdline-tools $HOME/android-sdk/cmdline-tools/latest
           yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk --licenses
           yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk "platform-tools" "platforms;android-33" "build-tools;33.0.2" "ndk;25.1.8937393"
 
       - name: Install Apache ANT manually
         run: |
-          mkdir -p $HOME/ant
-          curl -o ant.zip https://downloads.apache.org//ant/binaries/apache-ant-1.10.14-bin.zip
-          unzip -q ant.zip -d $HOME/
-          mv $HOME/apache-ant-1.10.14 $HOME/ant
+          curl -O https://downloads.apache.org/ant/binaries/apache-ant-1.10.14-bin.zip
+          unzip -q apache-ant-1.10.14-bin.zip
+          mv apache-ant-1.10.14 $HOME/ant
 
       - name: Build APK
         run: |
