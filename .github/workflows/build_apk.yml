@@ -21,14 +21,14 @@ jobs:
     - name: Install system dependencies
       run: |
         sudo apt update
-        sudo apt install -y zip unzip openjdk-17-jdk ant python3-pip libffi-dev libssl-dev libbz2-dev libsqlite3-dev
+        sudo apt install -y zip unzip openjdk-17-jdk ant python3-pip libffi-dev libssl-dev libbz2-dev libsqlite3-dev libncurses5
 
     - name: Set up Android SDK
       run: |
         mkdir -p $HOME/android-sdk/cmdline-tools
         cd $HOME/android-sdk/cmdline-tools
         wget https://dl.google.com/android/repository/commandlinetools-linux-10406996_latest.zip -O tools.zip
-        unzip tools.zip -d .
+        unzip tools.zip -d cmdline-tools
         mv cmdline-tools latest
         export ANDROID_SDK_ROOT=$HOME/android-sdk
         export PATH=$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$PATH
@@ -36,7 +36,7 @@ jobs:
         yes | sdkmanager --sdk_root=$ANDROID_SDK_ROOT \
           "platform-tools" \
           "platforms;android-33" \
-          "build-tools;36.0.0" \
+          "build-tools;33.0.2" \
           "ndk;25.2.9519653"
 
     - name: Install Buildozer
@@ -52,7 +52,7 @@ jobs:
         echo "ANDROIDAPI=33" >> $GITHUB_ENV
         echo "ANDROIDMINAPI=21" >> $GITHUB_ENV
         echo "$HOME/android-sdk/platform-tools" >> $GITHUB_PATH
-        echo "$HOME/android-sdk/build-tools/36.0.0" >> $GITHUB_PATH
+        echo "$HOME/android-sdk/build-tools/33.0.2" >> $GITHUB_PATH
         echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
 
     - name: Build APK
