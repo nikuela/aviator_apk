@@ -1,5 +1,4 @@
 name: Build APK
-
 on:
   push:
     branches: [ main ]
@@ -8,58 +7,119 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
+    
     steps:
     - name: Checkout repo
-      uses: actions/checkout@v3
-
+      uses: actions/checkout@v4
+      
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
-        python-version: '3.10'
-
+        python-version: '3.11'
+        
+    - name: Cache pip dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+          
+    - name: Cache Android SDK
+      uses: actions/cache@v4
+      with:
+        path: ~/android-sdk
+        key: ${{ runner.os }}-android-sdk-${{ hashFiles('buildozer.spec') }}
+        restore-keys: |
+          ${{ runner.os }}-android-sdk-
+    
     - name: Install system dependencies
       run: |
-        sudo apt update
-        sudo apt install -y zip unzip openjdk-17-jdk ant python3-pip libffi-dev libssl-dev libbz2-dev libsqlite3-dev
-
+        sudo apt-get update
+        sudo apt-get install -y \
+          zip unzip openjdk-17-jdk ant \
+          python3-pip libffi-dev libssl-dev \
+          libbz2-dev libsqlite3-dev libncurses5-dev \
+          libncursesw5-dev liblzma-dev tk-dev \
+          git autoconf libtool pkg-config \
+          zlib1g-dev
+    
     - name: Set up Android SDK
       run: |
+        # Crear directorio para Android SDK
         mkdir -p $HOME/android-sdk/cmdline-tools
         cd $HOME/android-sdk/cmdline-tools
-        wget https://dl.google.com/android/repository/commandlinetools-linux-10406996_latest.zip -O tools.zip
-        unzip tools.zip -d .
+        
+        # Descargar command line tools
+        wget -q https://dl.google.com/android/repository/commandlinetools-linux-10406996_latest.zip -O tools.zip
+        unzip -q tools.zip
         mv cmdline-tools latest
+        
+        # Configurar variables de entorno para este paso
         export ANDROID_SDK_ROOT=$HOME/android-sdk
         export PATH=$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$PATH
-        yes | sdkmanager --licenses
-        yes | sdkmanager --sdk_root=$ANDROID_SDK_ROOT \
+        
+        # Aceptar licencias e instalar componentes
+        yes | sdkmanager --licenses >/dev/null 2>&1
+        sdkmanager --sdk_root=$ANDROID_SDK_ROOT \
           "platform-tools" \
           "platforms;android-33" \
-          "build-tools;36.0.0" \
-          "ndk;25.2.9519653"
-
-    - name: Install Buildozer
+          "build-tools;33.0.2" \
+          "ndk;25.2.9519653" \
+          "cmake;3.22.1"
+    
+    - name: Install Python dependencies
       run: |
-        pip install --upgrade pip
-        pip install cython
+        python -m pip install --upgrade pip wheel setuptools
+        pip install cython==0.29.36
         pip install buildozer
-
+        # Si tienes requirements.txt, descomenta la siguiente línea
+        # pip install -r requirements.txt
+    
     - name: Set environment variables
       run: |
-        echo "ANDROIDSDK=$HOME/android-sdk" >> $GITHUB_ENV
-        echo "ANDROIDNDK=$HOME/android-sdk/ndk/25.2.9519653" >> $GITHUB_ENV
-        echo "ANDROIDAPI=33" >> $GITHUB_ENV
-        echo "ANDROIDMINAPI=21" >> $GITHUB_ENV
+        echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
+        echo "ANDROID_NDK_ROOT=$HOME/android-sdk/ndk/25.2.9519653" >> $GITHUB_ENV
+        echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
+        echo "JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64" >> $GITHUB_ENV
         echo "$HOME/android-sdk/platform-tools" >> $GITHUB_PATH
-        echo "$HOME/android-sdk/build-tools/36.0.0" >> $GITHUB_PATH
+        echo "$HOME/android-sdk/build-tools/33.0.2" >> $GITHUB_PATH
         echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
-
+    
+    - name: Initialize Buildozer
+      run: |
+        # Si no existe buildozer.spec, inicializar
+        if [ ! -f "buildozer.spec" ]; then
+          buildozer init
+        fi
+        
+        # Limpiar cache si es necesario
+        buildozer android clean
+    
     - name: Build APK
-      run: buildozer android debug
-
-    - name: Upload APK
+      run: |
+        buildozer android debug
+        
+        # Verificar que el APK se creó
+        if [ ! -f "bin/*.apk" ]; then
+          echo "Error: No se encontró el APK generado"
+          exit 1
+        fi
+    
+    - name: Upload APK artifact
       uses: actions/upload-artifact@v4
+      if: success()
       with:
-        name: AviatorPredictor
+        name: aviator-predictor-apk
         path: bin/*.apk
+        retention-days: 30
+        
+    - name: Upload build logs
+      uses: actions/upload-artifact@v4
+      if: failure()
+      with:
+        name: build-logs
+        path: |
+          .buildozer/
+          *.log
+        retention-days: 7
