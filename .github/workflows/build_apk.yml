@@ -73,6 +73,8 @@ jobs:
         python -m pip install --upgrade pip wheel setuptools
         pip install cython==0.29.36
         pip install buildozer
+        pip install python-for-android
+        pip install colorama appdirs sh jinja2 six
         # Si tienes requirements.txt, descomenta la siguiente línea
         # pip install -r requirements.txt
     
@@ -93,16 +95,38 @@ jobs:
           buildozer init
         fi
         
-        # Limpiar cache si es necesario
-        buildozer android clean
+        # Crear directorios necesarios
+        mkdir -p ~/.buildozer/android/platform
+        
+        # Configurar permisos
+        chmod -R 755 ~/.buildozer
+        
+        # Pre-descargar python-for-android
+        cd ~/.buildozer/android/platform
+        if [ ! -d "python-for-android" ]; then
+          git clone https://github.com/kivy/python-for-android.git
+          cd python-for-android
+          pip install -e .
+        fi
     
     - name: Build APK
       run: |
-        buildozer android debug
+        # Configurar buildozer.spec si existe
+        if [ -f "buildozer.spec" ]; then
+          # Asegurar configuración correcta en buildozer.spec
+          sed -i 's/android.api = .*/android.api = 33/' buildozer.spec
+          sed -i 's/android.minapi = .*/android.minapi = 21/' buildozer.spec
+          sed -i 's/android.ndk = .*/android.ndk = 25.2.9519653/' buildozer.spec
+          sed -i 's/android.sdk = .*/android.sdk = 33/' buildozer.spec
+        fi
+        
+        # Ejecutar build con más verbose para debug
+        buildozer android debug --verbose
         
         # Verificar que el APK se creó
-        if [ ! -f "bin/*.apk" ]; then
+        if [ ! -f bin/*.apk ]; then
           echo "Error: No se encontró el APK generado"
+          ls -la bin/ || echo "Directorio bin/ no existe"
           exit 1
         fi
     
