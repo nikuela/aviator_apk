@@ -1,4 +1,19 @@
-name: Build APK
+- name: Build APK
+      run: |
+        # Ejecutar build con más verbose para debug
+        buildozer android debug --verbose
+        
+        # Verificar que el APK se creó
+        if [ ! -f bin/*.apk ]; then
+          echo "Error: No se encontró el APK generado"
+          echo "Contenido del directorio actual:"
+          ls -la
+          echo "Contenido del directorio bin/ (si existe):"
+          ls -la bin/ || echo "Directorio bin/ no existe"
+          echo "Contenido del directorio .buildozer:"
+          find .buildozer -name "*.apk" -type f || echo "No se encontraron APKs en .buildozer"
+          exit 1
+        finame: Build APK
 on:
   push:
     branches: [ main ]
@@ -88,47 +103,66 @@ jobs:
         echo "$HOME/android-sdk/build-tools/33.0.2" >> $GITHUB_PATH
         echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
     
-    - name: Initialize Buildozer
+    - name: Create buildozer.spec
       run: |
-        # Si no existe buildozer.spec, inicializar
-        if [ ! -f "buildozer.spec" ]; then
-          buildozer init
-        fi
+        # Crear buildozer.spec con configuración correcta
+        cat > buildozer.spec << 'EOF'
+        [app]
+        title = Aviator Predictor
+        package.name = aviatorpredictor
+        package.domain = com.nikuela
+        source.dir = .
+        source.main = main.py
+        source.include_exts = py,png,jpg,kv,atlas,ttf,txt
+        version = 0.1
+        requirements = python3,kivy
+        android.archs = arm64-v8a, armeabi-v7a
+        fullscreen = 0
+        android.permissions = INTERNET,ACCESS_NETWORK_STATE
         
+        [buildozer]
+        log_level = 2
+        warn_on_root = 1
+        
+        [android]
+        android.api = 33
+        android.minapi = 21
+        android.ndk = 25.2.9519653
+        android.private_storage = True
+        orientation = portrait
+        android.enable_androidx = True
+        EOF
+        
+        echo "buildozer.spec creado:"
+        cat buildozer.spec
+    
+    - name: Initialize Buildozer
+      run: |        
         # Crear directorios necesarios
         mkdir -p ~/.buildozer/android/platform
+        mkdir -p .buildozer/android/platform
         
         # Configurar permisos
-        chmod -R 755 ~/.buildozer
+        chmod -R 755 ~/.buildozer || true
+        chmod -R 755 .buildozer || true
         
-        # Pre-descargar python-for-android
-        cd ~/.buildozer/android/platform
-        if [ ! -d "python-for-android" ]; then
-          git clone https://github.com/kivy/python-for-android.git
-          cd python-for-android
-          pip install -e .
-        fi
-    
-    - name: Build APK
-      run: |
-        # Configurar buildozer.spec si existe
-        if [ -f "buildozer.spec" ]; then
-          # Asegurar configuración correcta en buildozer.spec
-          sed -i 's/android.api = .*/android.api = 33/' buildozer.spec
-          sed -i 's/android.minapi = .*/android.minapi = 21/' buildozer.spec
-          sed -i 's/android.ndk = .*/android.ndk = 25.2.9519653/' buildozer.spec
-          sed -i 's/android.sdk = .*/android.sdk = 33/' buildozer.spec
-        fi
-        
-        # Ejecutar build con más verbose para debug
-        buildozer android debug --verbose
-        
-        # Verificar que el APK se creó
-        if [ ! -f bin/*.apk ]; then
-          echo "Error: No se encontró el APK generado"
-          ls -la bin/ || echo "Directorio bin/ no existe"
+        # Verificar que buildozer.spec existe y es válido
+        if [ ! -f "buildozer.spec" ]; then
+          echo "Error: buildozer.spec no encontrado"
           exit 1
         fi
+        
+        echo "Validando buildozer.spec..."
+        python -c "
+        import configparser
+        config = configparser.ConfigParser()
+        config.read('buildozer.spec')
+        print('buildozer.spec es válido')
+        print('Secciones encontradas:', list(config.sections()))
+        "
+        
+        # Limpiar cache previo si existe
+        buildozer android clean || true
     
     - name: Upload APK artifact
       uses: actions/upload-artifact@v4
