@@ -30,4 +30,6 @@ jobs:
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
-      wit
+      with:
+        name: AviatorPredictor-APK
+        path: bin/*.apk
