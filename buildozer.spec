@@ -1,12 +1,12 @@
 [app]
 # (str) Título de tu aplicación
-title = AviatorPredictor
+title = Aviator Predictor
 
 # (str) Nombre del paquete
 package.name = aviatorpredictor
 
 # (str) Dominio del paquete (usado para bundleid en iOS)
-package.domain = org.example
+package.domain = com.nikuela
 
 # (str) Código fuente de tu aplicación principal
 source.dir = .
@@ -22,7 +22,7 @@ version = 0.1
 
 # (list) Dependencias de la aplicación
 # Separadas por comas, ej: requirements = python3,kivy
-requirements = python3,kivy,kivymd
+requirements = python3,kivy
 
 # (str) Icono de la aplicación
 #icon.filename = %(source.dir)s/data/icon.png
