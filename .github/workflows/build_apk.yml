@@ -21,19 +21,22 @@ jobs:
     - name: Install system dependencies
       run: |
         sudo apt update
-        sudo apt install -y zip unzip openjdk-17-jdk git libncurses6
+        sudo apt install -y zip unzip openjdk-17-jdk git libz-dev libffi-dev
 
     - name: Set up Android SDK
       run: |
-        mkdir -p $HOME/android-sdk/cmdline-tools
-        cd $HOME/android-sdk/cmdline-tools
+        export ANDROID_SDK_ROOT=$HOME/android-sdk
+        export PATH=$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$PATH
+        export JAVA_TOOL_OPTIONS="-Dcom.sun.net.ssl.checkRevocation=false"
+
+        mkdir -p $ANDROID_SDK_ROOT/cmdline-tools
+        cd $ANDROID_SDK_ROOT/cmdline-tools
         wget https://dl.google.com/android/repository/commandlinetools-linux-10406996_latest.zip -O tools.zip
         unzip tools.zip
         mv cmdline-tools latest
-        export ANDROID_SDK_ROOT=$HOME/android-sdk
-        export PATH=$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$PATH
+
         yes | sdkmanager --sdk_root=$ANDROID_SDK_ROOT --licenses
-        yes | sdkmanager --sdk_root=$ANDROID_SDK_ROOT \
+        yes | sdkmanager --sdk_root=$ANDROID_SDK_ROOT --channel=0 --verbose \
           "platform-tools" \
           "platforms;android-33" \
           "build-tools;33.0.2" \
@@ -55,14 +58,11 @@ jobs:
         echo "$HOME/android-sdk/build-tools/33.0.2" >> $GITHUB_PATH
 
     - name: Build APK
-      run: |
-        export ANDROID_SDK_ROOT=$HOME/android-sdk
-        export PATH=$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$PATH
-        sdkmanager "build-tools;33.0.2" --sdk_root=$ANDROID_SDK_ROOT
-        buildozer android debug
+      run: buildozer android debug
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: AviatorPredictor
         path: bin/*.apk
+
