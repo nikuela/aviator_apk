@@ -21,9 +21,15 @@ jobs:
     - name: Install system dependencies
       run: |
         sudo apt update
-        sudo apt install -y zip unzip openjdk-17-jdk git libgl1-mesa-dev libncurses5
-
-    - name: Manually install Apache ANT
+        sudo apt install -y \
+          zip unzip openjdk-17-jdk git \
+          python3-pip python3-setuptools python3-wheel \
+          libffi-dev libssl-dev libjpeg-dev zlib1g-dev \
+          libncurses5 libncurses5-dev libtinfo5 \
+          pkg-config autoconf libtool \
+          libgl1-mesa-dev
+        
+    - name: Install Apache ANT manually
       run: |
         wget https://archive.apache.org/dist/ant/binaries/apache-ant-1.9.4-bin.tar.gz
         tar -xzf apache-ant-1.9.4-bin.tar.gz
@@ -31,15 +37,18 @@ jobs:
         echo "ANT_HOME=$HOME/ant" >> $GITHUB_ENV
         echo "$HOME/ant/bin" >> $GITHUB_PATH
 
-    - name: Install Buildozer
+    - name: Install Buildozer and dependencies
       run: |
         pip install --upgrade pip
-        pip install buildozer cython
+        pip install buildozer cython virtualenv six
 
     - name: Set Android environment variables
       run: |
         echo "ANDROIDSDK=$ANDROID_HOME" >> $GITHUB_ENV
-        echo "ANDROIDNDK=$ANDROID_HOME/ndk-bundle" >> $GITHUB_ENV
+        echo "ANDROIDNDK=$ANDROID_HOME/ndk/27.2.12479018" >> $GITHUB_ENV
+        echo "ANDROIDNDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> $GITHUB_ENV
+        echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> $GITHUB_ENV
+        echo "ANDROID_NDK_ROOT=$ANDROID_HOME/ndk/27.2.12479018" >> $GITHUB_ENV
         echo "ANDROIDAPI=33" >> $GITHUB_ENV
         echo "ANDROIDMINAPI=21" >> $GITHUB_ENV
 
@@ -47,7 +56,7 @@ jobs:
       run: |
         buildozer android debug
 
-    - name: Upload APK artifact
+    - name: Upload APK
       uses: actions/upload-artifact@v3
       with:
         name: AviatorPredictor
