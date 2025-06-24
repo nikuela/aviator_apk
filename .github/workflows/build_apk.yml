@@ -21,12 +21,12 @@ jobs:
           sudo apt update
           sudo apt install -y python3-pip zip unzip openjdk-17-jdk libgl1-mesa-dev libncurses5 curl
           python3 -m pip install --upgrade pip
-          pip install --user --upgrade buildozer cython==0.29.36
+          pip install --user buildozer cython==0.29.36
 
       - name: Set environment variables
         run: |
           echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
-          echo "PATH=$HOME/.local/bin:$HOME/android-sdk/cmdline-tools/latest/bin:$PATH" >> $GITHUB_ENV
+          echo "PATH=$HOME/.local/bin:$HOME/android-sdk/cmdline-tools/latest/bin:$HOME/ant/bin:$PATH" >> $GITHUB_ENV
 
       - name: Install Android SDK
         run: |
@@ -36,6 +36,13 @@ jobs:
           mv $HOME/android-sdk/cmdline-tools/cmdline-tools $HOME/android-sdk/cmdline-tools/latest
           yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk --licenses
           yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk "platform-tools" "platforms;android-33" "build-tools;33.0.2" "ndk;25.1.8937393"
+
+      - name: Install Apache ANT manually
+        run: |
+          mkdir -p $HOME/ant
+          curl -o ant.zip https://downloads.apache.org//ant/binaries/apache-ant-1.10.14-bin.zip
+          unzip -q ant.zip -d $HOME/
+          mv $HOME/apache-ant-1.10.14 $HOME/ant
 
       - name: Build APK
         run: |
