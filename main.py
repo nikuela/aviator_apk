@@ -38,3 +38,4 @@ class AviatorApp(App):
 
 if __name__ == '__main__':
     AviatorApp().run()
+# 🚀 Forzando ejecución de workflow build_apk.yml desde IA
