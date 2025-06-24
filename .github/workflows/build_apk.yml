@@ -21,7 +21,7 @@ jobs:
     - name: Install system dependencies
       run: |
         sudo apt update
-        sudo apt install -y zip unzip openjdk-17-jdk git libgl1-mesa-dev libncurses5 wget
+        sudo apt install -y zip unzip openjdk-17-jdk git libgl1-mesa-dev libncurses6 wget
 
     - name: Manually install Apache ANT
       run: |
