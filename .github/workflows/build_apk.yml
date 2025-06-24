@@ -20,7 +20,7 @@ jobs:
       run: |
         sudo apt update
         sudo apt install -y python3-pip python3-setuptools git zip unzip openjdk-11-jdk
-        pip install buildozer
+        pip install buildozer cython
 
     - name: Build APK
       run: |
