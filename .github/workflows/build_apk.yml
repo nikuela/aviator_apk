@@ -14,52 +14,49 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v4
       with:
         python-version: '3.10'
 
-    - name: Install system dependencies
+    - name: Install dependencies
       run: |
         sudo apt update
-        sudo apt install -y zip unzip openjdk-17-jdk git libgl1-mesa-dev wget
+        sudo apt install -y zip unzip openjdk-17-jdk git libgl1-mesa-dev ant
 
-    - name: Install Apache ANT
+    - name: Install Buildozer
       run: |
-        wget https://archive.apache.org/dist/ant/binaries/apache-ant-1.9.4-bin.tar.gz
-        tar -xzf apache-ant-1.9.4-bin.tar.gz
-        mv apache-ant-1.9.4 $HOME/ant
-        echo "$HOME/ant/bin" >> $GITHUB_PATH
-
-    - name: Install Buildozer and Python deps
-      run: |
-        pip install --upgrade pip
+        python -m pip install --upgrade pip
         pip install buildozer cython
 
-    - name: Install Android SDK cmdline tools
+    - name: Install Android SDK & Build-Tools
       run: |
         mkdir -p $HOME/android-sdk/cmdline-tools
         cd $HOME/android-sdk/cmdline-tools
-        wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
-        unzip -q commandlinetools-linux-9477386_latest.zip
+        wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+        unzip -q commandlinetools-linux-*.zip
         mv cmdline-tools latest
-        echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
-        echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
-        echo "$HOME/android-sdk/platform-tools" >> $GITHUB_PATH
+        mkdir -p $HOME/.android && echo 'count=0' > $HOME/.android/repositories.cfg
 
-    - name: Accept SDK licenses
-      run: |
+        yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk \
+          "platform-tools" \
+          "platforms;android-33" \
+          "build-tools;34.0.0" \
+          "ndk;25.2.9519653" \
+          "cmake;3.22.1"
+
         yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses
 
-    - name: Install SDK Packages (versión estable 34.0.0)
+    - name: Set environment variables
       run: |
-        yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager \
-          "platform-tools" "platforms;android-33" "build-tools;34.0.0"
+        echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
+        echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
+        echo "PATH=$HOME/android-sdk/platform-tools:$HOME/android-sdk/build-tools/34.0.0:$HOME/android-sdk/cmdline-tools/latest/bin:$PATH" >> $GITHUB_ENV
 
-    - name: Build APK
+    - name: Build APK with Buildozer
       run: |
-        buildozer android debug --verbose
+        buildozer android debug
 
-    - name: Upload APK artifact
+    - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: AviatorPredictor
