@@ -21,7 +21,7 @@ jobs:
     - name: Install system dependencies
       run: |
         sudo apt update
-        sudo apt install -y zip unzip openjdk-17-jdk git python3-pip
+        sudo apt install -y zip unzip openjdk-17-jdk git libz-dev libffi-dev libssl-dev
 
     - name: Set up Android SDK
       run: |
@@ -39,6 +39,11 @@ jobs:
           "build-tools;33.0.2" \
           "ndk;25.2.9519653"
 
+    - name: Patch Buildozer global SDK config
+      run: |
+        mkdir -p $HOME/.buildozer
+        echo "{\"android\": {\"sdk_path\": \"$HOME/android-sdk\"}}" > $HOME/.buildozer/global.json
+
     - name: Install Buildozer
       run: |
         pip install --upgrade pip
@@ -54,11 +59,6 @@ jobs:
         echo "$HOME/android-sdk/platform-tools" >> $GITHUB_PATH
         echo "$HOME/android-sdk/build-tools/33.0.2" >> $GITHUB_PATH
 
-    - name: Patch Buildozer to use correct SDK path
-      run: |
-        mkdir -p $HOME/.buildozer
-        echo "{\"android\": {\"sdk_path\": \"$HOME/android-sdk\"}}" > $HOME/.buildozer/global.json
-
     - name: Build APK
       run: buildozer android debug
 
@@ -67,4 +67,3 @@ jobs:
       with:
         name: AviatorPredictor
         path: bin/*.apk
-
