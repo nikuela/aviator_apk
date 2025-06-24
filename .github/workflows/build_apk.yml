@@ -13,44 +13,47 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
-    - name: Set up Python
+    - name: Set up Python 3.10
       uses: actions/setup-python@v4
       with:
-        python-version: 3.10
+        python-version: '3.10'
 
-    - name: Install dependencies
+    - name: Install system dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install --user buildozer cython
+        sudo apt update
+        sudo apt install -y git zip unzip openjdk-17-jdk python3-pip cython
+
+    - name: Install Buildozer
+      run: |
+        python3 -m pip install --upgrade pip
+        pip install --user buildozer
 
     - name: Set environment variables
       run: |
         echo "ANDROIDSDK=$HOME/android-sdk" >> $GITHUB_ENV
-        echo "ANDROIDNDK=$HOME/.buildozer/android/platform/android-ndk-r25b" >> $GITHUB_ENV
         echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
+        echo "PATH=$PATH:$HOME/.local/bin:$HOME/android-sdk/cmdline-tools/latest/bin:$HOME/android-sdk/platform-tools" >> $GITHUB_ENV
 
-    - name: Install Android SDK & NDK manually
+    - name: Install Android SDK manually
       run: |
         mkdir -p $ANDROID_HOME/cmdline-tools
         cd $ANDROID_HOME/cmdline-tools
         curl -O https://dl.google.com/android/repository/commandlinetools-linux-10406996_latest.zip
         unzip commandlinetools-linux-*.zip -d latest
         rm commandlinetools-linux-*.zip
+
+    - name: Accept licenses and install SDK components
+      run: |
         yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
         yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
           "platform-tools" \
           "platforms;android-33" \
           "build-tools;33.0.2"
 
-    - name: Install other Python requirements
+    - name: Install additional Python packages
       run: |
-        pip install --user appdirs colorama jinja2 sh 'build' toml packaging setuptools
+        pip install --user appdirs colorama jinja2 sh build toml packaging setuptools
 
-    - name: Install Git & Cython
-      run: |
-        sudo apt update
-        sudo apt install -y git cython
-
-    - name: Build APK with Buildozer
+    - name: Build APK
       run: |
         buildozer android debug
