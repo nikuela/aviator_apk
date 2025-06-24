@@ -11,21 +11,29 @@ jobs:
 
     steps:
     - name: Checkout repo
-      uses: actions/checkout@v4
+      uses: actions/checkout@v3
 
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.10'
 
-    - name: Install dependencies
+    - name: Install system dependencies
       run: |
         sudo apt update
-        sudo apt install -y zip unzip openjdk-17-jdk git libgl1-mesa-dev ant
+        sudo apt install -y zip unzip openjdk-17-jdk git libgl1-mesa-dev
+
+    - name: Install Apache ANT manually
+      run: |
+        wget https://archive.apache.org/dist/ant/binaries/apache-ant-1.9.4-bin.tar.gz
+        tar -xzf apache-ant-1.9.4-bin.tar.gz
+        mv apache-ant-1.9.4 $HOME/ant
+        echo "ANT_HOME=$HOME/ant" >> $GITHUB_ENV
+        echo "$HOME/ant/bin" >> $GITHUB_PATH
 
     - name: Install Buildozer
       run: |
-        python -m pip install --upgrade pip
+        pip install --upgrade pip
         pip install buildozer cython
 
     - name: Install Android SDK & Build-Tools
@@ -46,18 +54,18 @@ jobs:
 
         yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses
 
-    - name: Set environment variables
+    - name: Set Android environment variables
       run: |
-        echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
-        echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
-        echo "PATH=$HOME/android-sdk/platform-tools:$HOME/android-sdk/build-tools/34.0.0:$HOME/android-sdk/cmdline-tools/latest/bin:$PATH" >> $GITHUB_ENV
+        echo "ANDROIDSDK=$HOME/android-sdk" >> $GITHUB_ENV
+        echo "ANDROIDNDK=$HOME/android-sdk/ndk/25.2.9519653" >> $GITHUB_ENV
+        echo "ANDROIDAPI=33" >> $GITHUB_ENV
+        echo "ANDROIDMINAPI=21" >> $GITHUB_ENV
 
-    - name: Build APK with Buildozer
-      run: |
-        buildozer android debug
+    - name: Build APK
+      run: buildozer android debug
 
-    - name: Upload APK
-      uses: actions/upload-artifact@v4
+    - name: Upload APK artifact
+      uses: actions/upload-artifact@v3
       with:
         name: AviatorPredictor
         path: bin/*.apk
