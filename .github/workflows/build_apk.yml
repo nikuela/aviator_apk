@@ -21,25 +21,23 @@ jobs:
     - name: Install system dependencies
       run: |
         sudo apt update
-        sudo apt install -y zip unzip openjdk-17-jdk git libffi-dev libssl-dev libncurses-dev libsqlite3-dev libjpeg-dev
+        sudo apt install -y zip unzip openjdk-17-jdk git python3-pip
 
     - name: Set up Android SDK
       run: |
+        mkdir -p $HOME/android-sdk/cmdline-tools
+        cd $HOME/android-sdk/cmdline-tools
+        wget https://dl.google.com/android/repository/commandlinetools-linux-10406996_latest.zip -O tools.zip
+        unzip tools.zip
+        mv cmdline-tools latest
         export ANDROID_SDK_ROOT=$HOME/android-sdk
         export PATH=$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$PATH
-
-        mkdir -p $ANDROID_SDK_ROOT/cmdline-tools
-        cd $ANDROID_SDK_ROOT/cmdline-tools
-        wget https://dl.google.com/android/repository/commandlinetools-linux-10406996_latest.zip -O tools.zip
-        unzip tools.zip -d .
-        mv cmdline-tools latest
-
-        yes | sdkmanager --licenses
-        yes | sdkmanager \
+        yes | sdkmanager --sdk_root=$ANDROID_SDK_ROOT --licenses
+        yes | sdkmanager --sdk_root=$ANDROID_SDK_ROOT \
           "platform-tools" \
           "platforms;android-33" \
           "build-tools;33.0.2" \
-          "tools"
+          "ndk;25.2.9519653"
 
     - name: Install Buildozer
       run: |
